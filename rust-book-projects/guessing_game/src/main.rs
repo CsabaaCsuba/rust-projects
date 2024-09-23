@@ -1,5 +1,5 @@
-use std::io;
 use rand::Rng;
+use std::io;
 
 fn main() {
     println!("Guess the number!");
@@ -10,14 +10,31 @@ fn main() {
 
     let mut guess = String::new();
 
-    let result = io::stdin()
-        .read_line(&mut guess);
+    io::stdin()
+        .read_line(&mut guess)
+        .expect("invalid input bruh");
 
-    match result {
-        
+    let mut bruh = 2;
+    {
+        bruh = 3;
+        println!("bruh is {}", bruh);
+    }
+    println!("bruh is {}", bruh);
+
+    let parsing_op = guess.parse::<i32>();
+    let number = match parsing_op {
+        Ok(number) => number,
+        Err(_error) => 0,
+    };
+
+    if (number == magic_number){
+        println!("Your guess was correct.");
+    }
+    else {
+        println!("Your guess was incorrect. The number is {}", magic_number);
     }
 
 
 
-    println!("You guessed: {}", guess);
+    
 }
