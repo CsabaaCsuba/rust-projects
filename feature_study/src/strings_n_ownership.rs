@@ -1,5 +1,5 @@
 #[allow(non_snake_case)]
-pub fn borrowing_fundamentals(){
+pub fn borrowing_fundamentals() {
     let mut S1 = String::from("halohalo");
 
     let S2 = &S1; //S2 has the same underlying string pointer as S1
@@ -15,16 +15,14 @@ pub fn borrowing_fundamentals(){
 
     println!("S2 and S1 are still completely valid: {S2} {S1}");
 
-
     let S2 = S1; //the values of S1 moved to S2, the original S1 is no longer valid
     println!("S1 has moved, so the only valid variable is S2: {S2}");
-
 }
 
-pub fn string_types(){
-    let MyString = String::from("Yeah this is a string");
+pub fn string_types() {
+    let my_string = String::from("Yeah this is a string");
 
-    let slice = &MyString[15..]; //[num1..num2] is the base syntax, but the numbers can be omitted 
+    let slice = &my_string[15..]; //[num1..num2] is the base syntax, but the numbers can be omitted
 
     println!("string slice: {slice}");
 
@@ -33,9 +31,9 @@ pub fn string_types(){
     println!("An other way to declare a string slice: {slice2}");
 }
 
-pub fn other_slices(){
+pub fn other_slices() {
     let num_vec = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    
+
     let vec_slice = &num_vec[2..5];
 
     assert_eq!(vec_slice, [3, 4, 5]);
@@ -46,8 +44,5 @@ pub fn other_slices(){
 
     let array_slice = &basic_arr[3..9];
 
-    
-
     println!("Array slice: {array_slice:?}");
-
 }

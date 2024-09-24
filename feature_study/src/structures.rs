@@ -1,3 +1,4 @@
+#[allow(unused)]
 #[derive(Debug)]
 struct User {
     active: bool,
@@ -11,6 +12,7 @@ struct Rectangle {
     height: u64,
 }
 
+#[allow(unused)]
 impl Rectangle {
     fn area(&self) -> u64 {
         self.width * self.height

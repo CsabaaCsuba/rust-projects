@@ -1,8 +1,8 @@
-mod types;
+mod enum_patterns;
 mod loops;
 mod strings_n_ownership;
 mod structures;
-mod enum_patterns;
+mod types;
 
 fn main() {
     types::type_info();
