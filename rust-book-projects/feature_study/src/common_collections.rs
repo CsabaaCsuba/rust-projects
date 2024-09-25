@@ -2,7 +2,7 @@ pub fn show_collections(){
     let mut v = vec![1, 2, 3, 4, 5];
 
     
-    let mut first = &mut v[0];
+    let first = &mut v[0];
     
     //POINTERS IN RUST OMG
     *first = 5;
