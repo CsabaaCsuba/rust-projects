@@ -3,6 +3,7 @@ mod loops;
 mod strings_n_ownership;
 mod structures;
 mod types;
+mod common_collections;
 
 fn main() {
     types::type_info();
@@ -12,5 +13,6 @@ fn main() {
     strings_n_ownership::other_slices();
     structures::activate_structs();
     enum_patterns::enums_and_patterns();
+    common_collections::show_collections();
     println!("Program finished");
 }
