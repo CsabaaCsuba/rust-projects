@@ -76,7 +76,7 @@ pub fn show_collections(){
 
 
 
-    //A way to update hashmap based on an old value
+    //A way to update hashmap's value based on an old value (which might not exist)
     let text = "hello world wonderful world";
 
     let mut map = HashMap::new();
@@ -87,4 +87,26 @@ pub fn show_collections(){
     }
 
     println!("{map:?}");
+
+
+
+
+    let mut map = std::collections::HashMap::new();
+
+    map.insert(8, "asd".to_string());
+
+    let myval_res = map.get(&8);
+
+    let myval = match myval_res {
+        Some(val) => val,
+        _ => &"".to_string()
+    };
+
+    println!("myval: {myval:?}");
+
+    let anotherval = map.entry(11).or_insert("bruh".to_string());
+
+    println!("an other value: {anotherval:?}");
+
+
 }
