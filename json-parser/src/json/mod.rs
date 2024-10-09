@@ -1,5 +1,6 @@
 #[allow(non_camel_case_types)]
 
+#[derive(Clone, Debug, Copy)]
 pub enum DataType {
     JS_NULL,
     NUMBER,
@@ -9,14 +10,16 @@ pub enum DataType {
     JSON,
 }
 
+
 pub union Data {
-    // pub JSON_value: JS_Object,
+    pub JSON_value: JS_Object,
     pub num_value: f64,
     pub boolean_value: bool,
     pub string_value: &'static str,
     // pub list_element_value: JS_Object,
 }
 
+#[derive(Clone, Copy, Debug)]
 pub struct JS_Object {
     pub object_dtype: DataType,
 

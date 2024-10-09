@@ -1,13 +1,10 @@
-pub fn show_collections(){
+pub fn show_collections() {
     let mut v = vec![1, 2, 3, 4, 5];
 
-    
     let first = &mut v[0];
-    
+
     //POINTERS IN RUST OMG
     *first = 5;
-
-    
 
     println!("The first element is: {first}");
 
@@ -17,7 +14,6 @@ pub fn show_collections(){
     }
 
     println!("V: {v:?}");
-
 
     let data = "initial content";
 
@@ -33,8 +29,6 @@ pub fn show_collections(){
 
     println!("string is {s}");
 
-
-
     let s1 = String::from("Hello ");
     let s2 = String::from("World");
 
@@ -42,16 +36,13 @@ pub fn show_collections(){
 
     println!("string 3: {s3}, 1: {s1}");
 
-
-    for c in "őű".chars(){
+    for c in "őű".chars() {
         println!("{c}");
     }
 
-    for b in "őű".bytes(){
+    for b in "őű".bytes() {
         println!("{b}");
     }
-
-
 
     use std::collections::HashMap;
 
@@ -74,8 +65,6 @@ pub fn show_collections(){
 
     scores.entry(String::from("Black")).or_insert(1000);
 
-
-
     //A way to update hashmap's value based on an old value (which might not exist)
     let text = "hello world wonderful world";
 
@@ -88,9 +77,6 @@ pub fn show_collections(){
 
     println!("{map:?}");
 
-
-
-
     let mut map = std::collections::HashMap::new();
 
     map.insert(8, "asd".to_string());
@@ -99,7 +85,7 @@ pub fn show_collections(){
 
     let myval = match myval_res {
         Some(val) => val,
-        _ => &"".to_string()
+        _ => &"".to_string(),
     };
 
     println!("myval: {myval:?}");
@@ -107,6 +93,4 @@ pub fn show_collections(){
     let anotherval = map.entry(11).or_insert("bruh".to_string());
 
     println!("an other value: {anotherval:?}");
-
-
 }
