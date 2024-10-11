@@ -1,0 +1,35 @@
+1. the commands to implement are:
+    CREATE,
+    SELECT,
+    INSERT,
+    UPDATE,
+    DELETE,
+    ALTER,
+    DROP,
+    // GRANT,
+    // REVOKE,
+    TRUNCATE
+
+
+2. after CREATE:
+    CHARACTER SET "charset"
+    COLLATION "language_set"
+
+3. SELECT rules:
+    SELECT t1.nev, t2.id FROM <tabla> t1 (valtozo nev) 
+    JOIN <masik_tabla> t2 ON t1.id = t2.id 
+    WHERE t1.szam > 5 
+    GROUP BY t1.nev 
+    HAVING t1.datum >= 2024.10.11 
+    ORDER BY t1.nev ASC 
+    LIMIT 10;
+
+SELECT|JOIN|WHERE|GROUP|HAVING|ORDER|LIMIT
+
+
+
+4. all the parameters are: 
+FROM, WHERE, HAVING, GROUP BY, ORDER BY, LIMIT, OFFSET, 
+JOIN, INNER JOIN, LEFT JOIN, RIGHT JOIN, FULL JOIN, 
+ON, IN, AS, DISTINCT, INTO, VALUES, SET, AND, OR, NOT, LIKE, IN, BETWEEN, 
+IS NULL, IS NOT NULL, UNION, ALL, EXISTS, ANY, SOME, CASE, WHEN, THEN, ELSE, END, DEFAULT
