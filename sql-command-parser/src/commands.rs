@@ -20,6 +20,12 @@ pub enum SecondKeyWord {
 
 }
 
+pub enum ThirdKeyword {
+    COLLATE,
+    CHARACTER,
+    SET
+}
+
 pub static STATEMENTS: [&'static str; 7] = ["CREATE", "READ", "INSERT", "UPDATE", "DELETE", "ALTER", "DROP"];
 
 pub fn match_statement_type(input_str: &mut String) -> Result<StatementType, Error>{
