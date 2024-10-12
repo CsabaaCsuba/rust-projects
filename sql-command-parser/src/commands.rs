@@ -15,10 +15,18 @@ pub enum StatementType {
 }
 
 pub enum SecondKeyWord {
+    TABLE,
+    DATABASE,
 
 }
 
+pub enum ThirdKeyword {
+    COLLATE,
+    CHARACTER,
+    SET
+}
 
+pub static STATEMENTS: [&'static str; 7] = ["CREATE", "READ", "INSERT", "UPDATE", "DELETE", "ALTER", "DROP"];
 
 pub fn match_statement_type(input_str: &mut String) -> Result<StatementType, Error>{
     if let Some(first_keyword) = input_str.to_uppercase().split_whitespace().next() { //this way the first element is always returned
@@ -40,8 +48,10 @@ pub fn match_statement_type(input_str: &mut String) -> Result<StatementType, Err
     }
 }
 
-pub fn match_param_type(input_str: &mut String){
-    
+pub fn check_create_statement_order() -> bool { //would check if the tokens (or string slices, maybe) are in the correct order
+
+
+    true
 }
 
 pub fn handle_found_statement(input_str: &mut String){
