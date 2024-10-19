@@ -1,5 +1,7 @@
 mod tokens;
 use tokens::Token;
+mod syntax_checker;
+use syntax_checker::validate_syntax;
 
 use std::io;
 
@@ -10,17 +12,67 @@ static POSSIBLE_TOKENS: [&str; 8] = [
 fn parse_next_command_part(command_part: &str) -> Option<Token> {
     let token: Token;
 
-    //match the command_part with all of the POSSIBLE_TOKENS with a for loop, then
+    let first_char = command_part.chars().nth(0).unwrap(); //safe to unwrap here, outer function doesn't allow empty command part string slice
+    
 
-    match command_part {
+    if first_char == '`' {
+        let cmd_part_len = command_part.len();
+
+        let last_char = command_part.chars().nth(cmd_part_len -1).unwrap();
+        if last_char != '`' {
+            return None;
+        }
+        let token_value = command_part.get(1..cmd_part_len).unwrap();
+
+        let return_value = token_value.to_string();
+        return Some(Token::NAME_UNIT(return_value));
+
+    }
+    else if first_char == '"' {
+        let cmd_part_len = command_part.len();
+
+        let last_char = command_part.chars().nth(cmd_part_len -1).unwrap();
+        if last_char != '"' {
+            return None;
+        }
+        let token_value = command_part.get(1..cmd_part_len).unwrap();
+
+        let return_value = token_value.to_string();
+        return Some(Token::STRING_VALUE(return_value));
+    }
+    else if (first_char as u8) >= 48 && (first_char as u8) <= 57 {
+        let numeric_value = command_part.parse::<f64>().unwrap();
+        if (numeric_value as i32) as f64 == numeric_value { //if numeric value is a whole number
+            return Some(Token::INT_VALUE(numeric_value as i32));
+        }
+        else {
+            return Some(Token::DOUBLE_VALUE(numeric_value));
+        }
+    }
+
+
+    let experimental_str = command_part.to_owned().to_string();
+    let uppercase_cmd = experimental_str.to_uppercase();
+    let uppercase_str = uppercase_cmd.as_str();
+    //match the command_part with all of the POSSIBLE_TOKENS with a for loop, then
+    match uppercase_str {
+        "FALSE" => token = Token::BOOL_VALUE(false),
+        "TRUE" => token = Token::BOOL_VALUE(true),
+
         "CREATE" => token = Token::CREATE,
         "SELECT" => token = Token::SELECT,
         "INSERT" => token = Token::INSERT,
         "UPDATE" => token = Token::UPDATE,
         "DELETE" => token = Token::DELETE,
         "ALTER" => token = Token::ALTER,
-        "TABLE" => token = Token::TABLE, 
-        "DATABASE" => token  = Token::DATABASE,
+        "DROP" => token = Token::DROP,
+
+        "TABLE" => token = Token::TABLE,
+        "DATABASE" => token = Token::DATABASE,
+
+
+
+
 
         _ => return None,
     }
@@ -57,6 +109,9 @@ pub fn read_command_loop() {
         if parsed_tokens.capacity() == 0 {
             //if the command fails, an error message is printed -> only a jump to the next iteration is needed
             continue;
+        }
+        if validate_syntax(&parsed_tokens){
+
         }
     }
 }
