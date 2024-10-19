@@ -7,6 +7,7 @@ pub enum Token {
     DELETE,
     ALTER,
     DROP,
+    USE,
     // GRANT,
     // REVOKE,
     // TRUNCATE, //to quickly remove all rows from a table??
@@ -23,7 +24,7 @@ pub enum Token {
     CHARACTER,
     SET,
 
-    
+
 
     
 
