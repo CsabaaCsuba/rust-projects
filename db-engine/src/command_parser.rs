@@ -72,6 +72,23 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         "TABLE" => token = Token::TABLE,
         "DATABASE" => token = Token::DATABASE,
 
+        "COLLATE" => token = Token::COLLATE,
+        "CHARACTER" => token = Token::CHARACTER,
+        "SET" => token = Token::SET,
+
+        "<" => token = Token::SMALLER_THAN_OPERATOR,
+        ">" => token = Token::BIGGER_THAN_OPERATOR,
+        "=" => token = Token::EQUAL_EXPRESSION,
+
+        "FROM" => token = Token::FROM,
+        "WHERE" => token = Token::WHERE,
+        "AND" => token = Token::AND,
+        "OR" => token = Token::OR,
+        "GROUP" => token = Token::GROUP,
+        "BY" => token = Token::BY,
+        "ORDER" => token = Token::ORDER,
+        "HAVING" => token = Token::HAVING,
+        "LIMIT" => token = Token::LIMIT,
 
 
 
@@ -113,7 +130,7 @@ pub fn read_command_loop() {
             continue;
         }
         if validate_syntax(&parsed_tokens){
-
+            //if syntax validation succeeded
         }
     }
 }

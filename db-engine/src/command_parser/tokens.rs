@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
     CREATE,
     SELECT,
@@ -23,6 +23,22 @@ pub enum Token {
     COLLATE,
     CHARACTER,
     SET,
+
+    EQUAL_EXPRESSION,
+    SMALLER_THAN_OPERATOR,
+    BIGGER_THAN_OPERATOR,
+
+    FROM,
+    WHERE,
+    AND,
+    OR,
+    GROUP,
+    BY,
+    ORDER,
+    HAVING,
+    LIMIT,
+
+
 
 
 
