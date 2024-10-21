@@ -99,6 +99,12 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
     Some(token)
 }
 
+
+fn parse_continously(command: &String) -> Vec<Token> {
+    let mut parsed_tokens: Vec<Token> = Vec::new();
+    let mut i = 0;
+}
+
 fn parse_command(command: &String) -> Vec<Token> {
     //TODO: remove newlines / whitespaces, so everything is only separated by spaces
     let mut parsed_tokens: Vec<Token> = Vec::new();
@@ -119,12 +125,44 @@ fn parse_command(command: &String) -> Vec<Token> {
     parsed_tokens
 }
 
+//UPDATE: this solution is shit
+//check if the last non-whitespace character of the string equals the right_character
+fn compare_last_char(checked_string: &String, right_character: char) -> bool{
+    let string_parts: Vec<&str> = checked_string.split_whitespace().collect();
+    let string_parts_len = string_parts.len();
+    if string_parts[string_parts_len-1] == right_character.to_string() {
+        return true;
+    }
+    let last_str_len = string_parts[string_parts_len-1].len();
+    if string_parts[string_parts_len-1].chars().nth(last_str_len-1).unwrap() == right_character {
+        return true;
+    }
+
+
+    false
+}
+
+fn remove_last_actual_char(input_string: String) -> String{
+    let mut new_string = String::new();
+
+
+    new_string
+}
+
 pub fn read_command_loop() {
+    let mut command = String::with_capacity(128);
     let mut input = String::with_capacity(128); //memory is enough for shorter commands
     loop {
-        io::stdin().read_line(&mut input).unwrap(); //input reading shouldn't really fail
+        //while the command is not closed properly
+        while !compare_last_char(&input, ';') {
+            io::stdin().read_line(&mut input).unwrap(); //input reading shouldn't really fail
+            command.push_str(&input);
+            
+        }
 
-        let parsed_tokens = parse_command(&input);
+        
+
+        let parsed_tokens = parse_command(&command);
         if parsed_tokens.capacity() == 0 {
             //if the command fails, an error message is printed -> only a jump to the next iteration is needed
             continue;
@@ -132,5 +170,8 @@ pub fn read_command_loop() {
         if validate_syntax(&parsed_tokens){
             //if syntax validation succeeded
         }
+
+        command.clear();
+        input.clear();
     }
 }

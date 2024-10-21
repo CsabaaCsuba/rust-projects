@@ -1,8 +1,10 @@
+use std::intrinsics::breakpoint;
+
 static POSSIBLE_DTYPES: [&str; 5] = ["INT", "ULONG", "DOUBLE", "VARCHAR", "BOOL"];
 
 pub enum COLUMN_DTYPE {
     INT,
-    ULONG,
+    // ULONG,
     DOUBLE,
     VARCHAR,
     BOOL,
@@ -58,11 +60,16 @@ impl Database {
         }
     }
 
-    fn drop_table(&mut self, table_name: String) {
+    fn create_table(&mut self, table_name: &String){
+
+
+    }
+
+    fn drop_table(&mut self, table_name: &String) {
         let mut i = 0;
         let mut is_found = false;
         for table in &self.tables {
-            if table.name == table_name {
+            if &table.name == table_name {
                 is_found = true;
             }
             i += 1;
@@ -80,6 +87,7 @@ impl Database {
 struct Engine {
     databases: Vec<Database>,
     selected_database: Option<String>, //name of the database
+    selected_db_i: Option<usize>, //the index of the database in the db vector
 }
 
 impl Engine {
@@ -88,6 +96,7 @@ impl Engine {
         Self {
             databases: Vec::new(),
             selected_database: None,
+            selected_db_i: None,
         }
     }
 
@@ -97,12 +106,15 @@ impl Engine {
     }
 
     fn select_db(&mut self, database_name: String) {
+        let mut i = 0;
         for db in &self.databases {
             if db.name == database_name {
                 println!("database selected: {}", database_name);
                 self.selected_database = Some(database_name.clone());
+                self.selected_db_i = Some(i);
                 break;
             }
+            i += 1;
         }
         println!("database named \"{database_name}\" wasn't found");
     }
@@ -126,5 +138,16 @@ impl Engine {
         } else {
             println!("database named \"{database_name}\" wasn't found");
         }
+    }
+
+    fn create_table (&mut self, table_name: String){
+        if self.selected_database == None || self.selected_db_i == None{
+            println!("select or create a database first");
+            return;
+        }
+        let idx: usize = self.selected_db_i.unwrap(); //it was already checked if the db index is 0, so unwrap is safe here
+        
+        &self.databases[idx].create_table();
+
     }
 }
