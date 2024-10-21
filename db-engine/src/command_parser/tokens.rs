@@ -1,4 +1,5 @@
-#[derive(Debug, PartialEq)]
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     CREATE,
     SELECT,
@@ -14,6 +15,8 @@ pub enum Token {
     TABLE,
     DATABASE,
 
+    NO_BACKTICK_NAME_UNIT(String),
+
     NAME_UNIT(String),
     STRING_VALUE(String),
     INT_VALUE(i32),
@@ -24,9 +27,17 @@ pub enum Token {
     CHARACTER,
     SET,
 
+    COMMA,
+    OPEN_PARENTHESIS,
+    CLOSING_PARENTHESIS,
+    SEMICOLON,
+    
+
     EQUAL_EXPRESSION,
     SMALLER_THAN_OPERATOR,
     BIGGER_THAN_OPERATOR,
+    
+    ASTERISK,
 
     FROM,
     WHERE,
@@ -38,11 +49,7 @@ pub enum Token {
     HAVING,
     LIMIT,
 
-
-
-
-
-    
+    VALUES,
 
 
 

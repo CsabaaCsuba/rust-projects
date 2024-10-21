@@ -1,18 +1,95 @@
 use crate::command_parser::Token;
 
-
- //for parsing general select statements, for select, update, delete
-fn parse_general_select(vector_part: &&Vec<Token>) -> bool{ //takes in a slice of a borrowed vector
-
-    false
+fn error_create() -> bool {
+    println!("validation error");
+    return false;
 }
 
 fn validate_create(token_vector: &Vec<Token>) -> bool {
-    //CREATE -> DATABASE -> `database_name` -> COLLATE (optional) -> CHARACTER SET "charset" (optional);
+    //CREATE -> DATABASE -> `database_name` -> COLLATE -> "collation" (optional) -> CHARACTER -> SET -> "charset" (optional);
     //CREATE -> TABLE -> `table_name` -> (column_name TYPE [optional args], column_name TYPE [optional args]); 
+    println!("validating create statement");
 
+    let tokens_len = token_vector.len();
+    if tokens_len < 4 || token_vector[0] != Token::CREATE || tokens_len > 9 {
+        println!("Wrong first token or wrong command length: {:?}", token_vector);
+        return false;
+    }
 
-    false
+    match &token_vector[2]{
+        Token::NAME_UNIT(string) => println!("Name unit is {string}"),
+        _ => return error_create(),
+    }
+
+    if token_vector[1] == Token::DATABASE {
+        
+
+        for mut i in 3..tokens_len {
+            if token_vector[i] == Token::SEMICOLON {
+                println!("semicolon encountered");
+                return true; //if it's a semicolon, return true
+            }
+            if token_vector[i] == Token::COLLATE {
+                println!("collate keyword encountered");
+                match token_vector.iter().nth(i+1) {
+                    Some(found_token) => {
+                        match found_token {
+                            Token::STRING_VALUE(string_val) => println!("String value: {string_val}"),
+                            _ => return error_create(),
+                        }
+                    },
+                    _ => return error_create(), //if the token is not a string
+                }
+                i += 1; //the next token is a complementer token for "COLLATE", which is checked, so no need to return
+            }
+            if token_vector[i] == Token::CHARACTER {
+                println!("character keyword encountered");
+                match token_vector.iter().nth(i+1) {
+                    Some(found_token) => {
+                        match found_token {
+                            Token::SET => println!("\"SET\" keyword encountered"), //if the found token is a string token
+                            _ => return error_create(),
+                        }
+                    },
+                    _ => return error_create(), //if the token is not a string
+                }
+                match token_vector.iter().nth(i+2) {
+                    Some(found_token) => {
+                        match found_token {
+                            Token::STRING_VALUE(string_val) => println!("String value: {string_val}"), //if the found token is a string token
+                            _ => return error_create(),
+                        }
+                    },
+                    _ => return error_create(), //if the token is not a string
+                }
+                i += 2;
+            }
+            else {
+                return error_create(); //if the token after the unit naming token isn't a CHARACTER SET or a COLLATE, false should be returned;
+            }
+        }
+        
+
+    }
+    else if token_vector[1] == Token::TABLE {
+        if token_vector[3] != Token::OPEN_PARENTHESIS {
+            return error_create();
+        }
+        for mut i in 4..tokens_len {
+            if token_vector[i] == Token::SEMICOLON {
+                println!("semicolon encountered");
+                return true; //if it's a semicolon, return true
+            }
+            match token_vector[i] {
+                
+                _ => return error_create(),
+            }
+        }
+    }
+    
+
+    println!("valid create statement.\n");
+    true
 }
 
 fn validate_select(token_vector: &Vec<Token>) -> bool {

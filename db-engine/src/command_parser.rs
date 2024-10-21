@@ -5,9 +5,9 @@ use syntax_checker::validate_syntax;
 
 use std::io;
 
-static POSSIBLE_TOKENS: [&str; 8] = [
-    "CREATE", "SELECT", "INSERT", "UPDATE", "DELETE", "ALTER", "TABLE", "DATABASE",
-];
+// static POSSIBLE_TOKENS: [&str; 8] = [
+//     "CREATE", "SELECT", "INSERT", "UPDATE", "DELETE", "ALTER", "TABLE", "DATABASE",
+// ];
 
 fn parse_next_command_part(command_part: &str) -> Option<Token> {
     let token: Token;
@@ -51,6 +51,7 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
     }
 
 
+
     let experimental_str = command_part.to_owned().to_string();
     let uppercase_cmd = experimental_str.to_uppercase();
     let uppercase_str = uppercase_cmd.as_str();
@@ -80,6 +81,14 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         ">" => token = Token::BIGGER_THAN_OPERATOR,
         "=" => token = Token::EQUAL_EXPRESSION,
 
+        "(" => token = Token::OPEN_PARENTHESIS,
+        ")" => token = Token::CLOSING_PARENTHESIS,
+        "," => token = Token::COMMA,
+
+        ";" => token = Token::SEMICOLON,
+
+        "*" => token = Token::ASTERISK,
+
         "FROM" => token = Token::FROM,
         "WHERE" => token = Token::WHERE,
         "AND" => token = Token::AND,
@@ -90,20 +99,18 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         "HAVING" => token = Token::HAVING,
         "LIMIT" => token = Token::LIMIT,
 
+        "VALUES" => token = Token::VALUES,
 
 
 
-        _ => return None,
+
+        _ => token = Token::NO_BACKTICK_NAME_UNIT(experimental_str), //experimental_str is consumed here, but it's no issue
     }
+    
 
     Some(token)
 }
 
-
-fn parse_continously(command: &String) -> Vec<Token> {
-    let mut parsed_tokens: Vec<Token> = Vec::new();
-    let mut i = 0;
-}
 
 fn parse_command(command: &String) -> Vec<Token> {
     //TODO: remove newlines / whitespaces, so everything is only separated by spaces
@@ -130,6 +137,9 @@ fn parse_command(command: &String) -> Vec<Token> {
 fn compare_last_char(checked_string: &String, right_character: char) -> bool{
     let string_parts: Vec<&str> = checked_string.split_whitespace().collect();
     let string_parts_len = string_parts.len();
+    if string_parts_len == 0 {
+        return false;
+    }
     if string_parts[string_parts_len-1] == right_character.to_string() {
         return true;
     }
@@ -142,12 +152,6 @@ fn compare_last_char(checked_string: &String, right_character: char) -> bool{
     false
 }
 
-fn remove_last_actual_char(input_string: String) -> String{
-    let mut new_string = String::new();
-
-
-    new_string
-}
 
 pub fn read_command_loop() {
     let mut command = String::with_capacity(128);

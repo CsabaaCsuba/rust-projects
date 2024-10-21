@@ -1,7 +1,6 @@
-use std::intrinsics::breakpoint;
 
-static POSSIBLE_DTYPES: [&str; 5] = ["INT", "ULONG", "DOUBLE", "VARCHAR", "BOOL"];
-
+// static POSSIBLE_DTYPES: [&str; 5] = ["INT", "ULONG", "DOUBLE", "VARCHAR", "BOOL"];
+#[allow(non_camel_case_types)]
 pub enum COLUMN_DTYPE {
     INT,
     // ULONG,
@@ -140,14 +139,14 @@ impl Engine {
         }
     }
 
-    fn create_table (&mut self, table_name: String){
+    fn create_table (&mut self, table_name: &String){
         if self.selected_database == None || self.selected_db_i == None{
             println!("select or create a database first");
             return;
         }
         let idx: usize = self.selected_db_i.unwrap(); //it was already checked if the db index is 0, so unwrap is safe here
         
-        &self.databases[idx].create_table();
+        &self.databases[idx].create_table(table_name);
 
     }
 }
