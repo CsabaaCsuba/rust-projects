@@ -1,5 +1,5 @@
 mod tokens;
-use tokens::Token;
+use tokens::{Token, TypeNotation};
 mod syntax_checker;
 use syntax_checker::validate_syntax;
 
@@ -101,6 +101,28 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
 
         "VALUES" => token = Token::VALUES,
 
+
+        "DOUBLE" => token = Token::TYPE_KEYWORD(TypeNotation::DOUBLE),
+        "INT" => token = Token::TYPE_KEYWORD(TypeNotation::INT),
+        "TEXT" => token = Token::TYPE_KEYWORD(TypeNotation::TEXT),
+        "BOOL" => token = Token::TYPE_KEYWORD(TypeNotation::BOOL),
+
+
+        
+        "PRIMARY" => token = Token::PRIMARY,
+        "KEY" => token = Token::KEY,
+        "NOT" => token = Token::NOT,
+        "NULL" => token = Token::NULL,
+        "UNIQUE" => token = Token::UNIQUE,
+        "AUTO_INCREMENT" => token = Token::AUTO_INCREMENT,
+        "DEFAULT" => token = Token::DEFAULT,
+
+        "CONSTRAINT" => token = Token::CONSTRAINT,
+
+        "FOREIGN" => token = Token::FOREIGN,
+        "REFERENCES" => token = Token::REFERENCES,
+
+        "ON" => token = Token::ON,
 
 
 

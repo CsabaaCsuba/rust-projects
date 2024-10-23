@@ -5,7 +5,8 @@ pub enum COLUMN_DTYPE {
     INT,
     // ULONG,
     DOUBLE,
-    VARCHAR,
+    // VARCHAR,
+    TEXT,
     BOOL,
 }
 

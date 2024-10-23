@@ -1,5 +1,14 @@
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Clone)]
+pub enum TypeNotation {
+    INT,
+    TEXT,
+    DOUBLE,
+    BOOL,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     CREATE,
     SELECT,
@@ -15,7 +24,7 @@ pub enum Token {
     TABLE,
     DATABASE,
 
-    NO_BACKTICK_NAME_UNIT(String),
+    NO_BACKTICK_NAME_UNIT(String), //fields upon creation
 
     NAME_UNIT(String),
     STRING_VALUE(String),
@@ -50,6 +59,27 @@ pub enum Token {
     LIMIT,
 
     VALUES,
+
+    TYPE_KEYWORD(TypeNotation),
+
+
+    PRIMARY,
+    KEY,
+    NOT,
+    NULL,
+    UNIQUE,
+    AUTO_INCREMENT,
+    DEFAULT,
+
+    CONSTRAINT,
+
+    FOREIGN,
+    REFERENCES,
+
+    ON,
+    
+
+
 
 
 
