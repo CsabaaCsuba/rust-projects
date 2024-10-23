@@ -85,10 +85,17 @@ fn validate_create(token_vector: &Vec<Token>) -> bool {
         if token_vector[3] != Token::OPEN_PARENTHESIS {
             return error_create();
         }
+        let mut base_pattern = false; //whether if the base_pattern was encountered or not
         for mut i in 4..tokens_len {
-            if token_vector[i] == Token::SEMICOLON {
-                println!("semicolon encountered");
-                return true; //if it's a semicolon, return true
+            if token_vector[i] == Token::CLOSING_PARENTHESIS { //in this type of statements, the closing parenthesis also marks the end of the statement basically
+                if check_next_token(token_vector.get(i+1), Token::SEMICOLON){
+                    println!("semicolon encountered");
+                    return true; //if it's a semicolon, return true
+                }
+                else {
+                    return error_create();
+                }
+                
             }
         
             match token_vector[i] {
@@ -98,22 +105,59 @@ fn validate_create(token_vector: &Vec<Token>) -> bool {
                     }
                     match token_vector[i+1] {
                         Token::TYPE_KEYWORD(_) => {
-                            //if it's a type, it can have a NOT NULL after it
-                            if check_next_token(token_vector.get(i+2), Token::NOT){
-                                if check_next_token(token_vector.get(i+3), Token::NULL){
-                                    i += 3;
-                                }
-                                else {
-                                    return error_create();
-                                }
-                            }
+                            println!("type keyword found");
+                            //if it's a type, then optional keywords can come like PRIMARY KEY or NOT NULL
+                            base_pattern = true;
+                            i += 1;
       
                             //TODO: check the comma after the end of possible keywords, no matter the keyword
-
                         }
                         _ => return error_create()
                     }
                 }
+                //the comma resets the base pattern, because in the next loop, basic tokens can come as well
+                Token::COMMA => {
+                    if base_pattern {
+                        println!("column definition ended. next column...");
+                        base_pattern = false;
+                    }
+                    else {
+                        return error_create();
+                    }
+                }
+                Token::NOT => {
+                    if base_pattern {
+                        println!("base pattern was already found. NOT keyword is legitimate");
+                        if check_next_token(token_vector.get(i+1), Token::NULL){
+                            println!("after NOT, NULL token is there");
+                            i += 1; //if the next token is NULL, it's valid, but nothing has to be done apart from incrementing the loop
+                        }
+                        else {
+                            return error_create();
+                        }
+                    }
+                    else {
+                        return error_create();
+                    }
+                }
+                Token::PRIMARY => {
+                    if base_pattern {
+                        println!("base pattern was already found. PRIMARY keyword is legitimate");
+                        if check_next_token(token_vector.get(i+1), Token::KEY){
+                            println!("after PRIMARY, KEY token is there");
+                            i += 1; //if the next token is NULL, it's valid, but nothing has to be done apart from incrementing the loop
+                        }
+                        else {
+                            return error_create();
+                        }
+                    }
+                    else {
+                        return error_create();
+                    }
+                }
+                //TODO: Add other optional keywords here
+
+
                 
                 _ => return error_create(),
             }
