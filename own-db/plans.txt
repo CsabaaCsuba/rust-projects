@@ -1,9 +1,0 @@
-data types:
-    boolean, string (any length), number (DOUBLE),
-    OTM (One To Many), MTM (Many to Many), OTO(One to One)
-
-ID is a hash generated automatically (data + current time)
-
-CREATE DATABASE db_name; -> everything is utf8, collation is a standard collation
-CREATE TABLE table_name (variable_name variable_type);
-SELECT ID, Name, 

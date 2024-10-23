@@ -24,6 +24,8 @@ pub enum Token {
     TABLE,
     DATABASE,
 
+    INTO,
+
     NO_BACKTICK_NAME_UNIT(String), //fields upon creation
 
     NAME_UNIT(String),

@@ -69,6 +69,8 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         "DROP" => token = Token::DROP,
         "USE" => token = Token::USE,
 
+        "INTO" => token = Token::INTO,
+
 
         "TABLE" => token = Token::TABLE,
         "DATABASE" => token = Token::DATABASE,

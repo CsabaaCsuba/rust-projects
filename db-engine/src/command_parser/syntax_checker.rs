@@ -9,14 +9,14 @@ fn error_create() -> bool {
 //     match token
 // }
 
-fn check_next_token(checked_token: Option<&Token>, check_against: Token) -> bool { //checks if a vector.get() element even exists, and then if it's the right token
+pub fn check_next_token(checked_token: Option<&Token>, check_against: Token) -> bool { //checks if a vector.get() element even exists, and then if it's the right token
     match checked_token {
         Some(token) => return token == &check_against,
         None => return false,
     }
 }
 
-fn validate_create(token_vector: &Vec<Token>) -> bool {
+pub fn validate_create(token_vector: &Vec<Token>) -> bool {
     //CREATE -> DATABASE -> `database_name` -> COLLATE -> "collation" (optional) -> CHARACTER -> SET -> "charset" (optional);
     //CREATE -> TABLE -> `table_name` -> (column_name TYPE [optional args], column_name TYPE [optional args]); 
     println!("validating create statement");
@@ -169,25 +169,62 @@ fn validate_create(token_vector: &Vec<Token>) -> bool {
     true
 }
 
-fn validate_select(token_vector: &Vec<Token>) -> bool {
+pub fn validate_select(token_vector: &Vec<Token>) -> bool {
     // SELECT -> COLUMNS | * -> FROM `table_name` -> WHERE (optional) -> AND / OR (if there's an other criteria)
         // -> GROUP BY (optional) -> HAVING (optional) -> ORDER BY (optional) -> LIMIT (optional);
     false
 }
 
-fn validate_insert(token_vector: &Vec<Token>) -> bool {
-    // INSERT INTO `table_name` -> (columns) (optional) -> VALUES (values_list) -> ON DUPLICATE KEY UPDATE (optional);
-
-    false
+fn error_insert(error_msg: &str) -> bool{
+    println!("Error inserting: {error_msg}");
+    return false;
 }
 
-fn validate_update(token_vector: &Vec<Token>) -> bool {
+pub fn validate_insert(token_vector: &Vec<Token>) -> bool {
+    // INSERT INTO `table_name` -> (columns) (optional) -> VALUES (values_list) -> ON DUPLICATE KEY UPDATE (optional);
+    //TODO: write the longer variant (column definitions as well)
+    let tokens_len = token_vector.len();
+    if tokens_len < 6 {
+        return false;
+    }
+    //checking the starting - default cases
+    if !check_next_token(token_vector.get(0), Token::INSERT){
+        return error_insert("the first token is not an insert token");
+    }
+    if !check_next_token(token_vector.get(1), Token::INTO){
+        return error_insert("the second token is not \"INTO\"");
+    }
+    match token_vector.get(2){
+        Some(token)=> {
+            match token {
+                Token::NO_BACKTICK_NAME_UNIT(_) => (),
+                Token::NAME_UNIT(_) => (),
+                _ => return error_insert("table name incorrect."),
+            }
+        },
+        None => return error_insert("sentence too short"),
+    }
+    if !check_next_token(token_vector.get(3), Token::OPEN_PARENTHESIS){
+        return error_insert("opening parenthesis for the columns not found");
+    }
+    //checking the data types
+    let mut columns_included = 0;
+    let mut data_included = 0;
+    for mut i in 4..tokens_len {
+
+    }
+
+    true
+}
+
+pub fn validate_update(token_vector: &Vec<Token>) -> bool {
     // UPDATE `table_name` -> SET column = value -> WHERE (optional) -> AND / OR (optional, based on WHERE) -> ORDER BY (optional) -> LIMIT (optional);
 
+
     false
 }
 
-fn validate_delete(token_vector: &Vec<Token>) -> bool {
+pub fn validate_delete(token_vector: &Vec<Token>) -> bool {
     // DELETE FROM `table_name` -> WHERE (optional) -> AND / OR (optional) -> ORDER BY (optional) -> LIMIT (optional);
     //if there is a WHERE, check for a condition, then check for an AND / OR condition
 
@@ -196,7 +233,7 @@ fn validate_delete(token_vector: &Vec<Token>) -> bool {
     false
 }
 
-fn validate_use(token_vector: &Vec<Token>) -> bool {
+pub fn validate_use(token_vector: &Vec<Token>) -> bool {
     // USE `database_name`;
     if token_vector.len() != 3 {
         return false;
@@ -221,7 +258,7 @@ fn error_drop(condition: i32) -> bool{
     false
 }
 
-fn validate_drop(token_vector: &Vec<Token>) -> bool {
+pub fn validate_drop(token_vector: &Vec<Token>) -> bool {
     if token_vector.len() < 4 { //3 tokens + ";"
         return error_drop(1);
     }
