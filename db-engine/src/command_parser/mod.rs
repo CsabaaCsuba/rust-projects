@@ -116,6 +116,11 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
 
         "ON" => token = Token::ON,
 
+        "CASCADE" => token = Token::CASCADE,
+        "NO" => token = Token::NO,
+        "ACTION" => token = Token::ACTION,
+        "RESTRICT" => token = Token::RESTRICT,
+
         _ => token = Token::NO_BACKTICK_NAME_UNIT(experimental_str), //experimental_str is consumed here, but it's no issue
     }
 

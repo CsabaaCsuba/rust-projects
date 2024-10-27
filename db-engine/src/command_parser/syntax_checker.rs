@@ -148,6 +148,8 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                         Token::OPEN_PARENTHESIS,
                         Token::NO_BACKTICK_NAME_UNIT(String::new()),
                         Token::CLOSING_PARENTHESIS,
+                        Token::ON,
+                        Token::DELETE,
                     ];
                     let syntax_len = foreign_syntax.len(); //because it will get out of scope
                     if match_rigid_pattern(token_vector, foreign_syntax, i) {
@@ -156,6 +158,8 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                     } else {
                         return error_create("FOREIGN KEY pattern invalid");
                     }
+                    //TODO: check the things that can come after on-delete (CASCADE, SET NULL, SET DEFAULT, NO ACTION, RESTRICT)
+
                     base_pattern = true; //this was a complete base pattern, a comma can come after it
                 }
 

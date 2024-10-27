@@ -77,4 +77,10 @@ pub enum Token {
     REFERENCES,
 
     ON,
+    CASCADE,
+    NO,
+    ACTION, //NO ACTION is an ON DELETE possibility
+    RESTRICT,
+
+    
 }
