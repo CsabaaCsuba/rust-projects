@@ -22,7 +22,7 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         if last_char != '`' {
             return None;
         }
-        let token_value = command_part.get(1..cmd_part_len).unwrap();
+        let token_value = command_part.get(1..cmd_part_len -1).unwrap();
 
         let return_value = token_value.to_string();
         return Some(Token::NAME_UNIT(return_value));

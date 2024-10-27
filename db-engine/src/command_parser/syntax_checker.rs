@@ -1,7 +1,7 @@
 use crate::command_parser::Token;
 
-fn error_create() -> bool {
-    println!("validation error");
+fn error_create(msg: &str) -> bool {
+    println!("create statement: validation error: {msg}");
     return false;
 }
 
@@ -29,7 +29,7 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
 
     match &token_vector[2]{
         Token::NAME_UNIT(string) => println!("Name unit is {string}"),
-        _ => return error_create(),
+        _ => return error_create("incorrect name for the database"),
     }
 
     if token_vector[1] == Token::DATABASE {
@@ -44,10 +44,10 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                     Some(found_token) => {
                         match found_token {
                             Token::STRING_VALUE(string_val) => println!("String value: {string_val}"),
-                            _ => return error_create(),
+                            _ => return error_create("collation isn't specified properly"),
                         }
                     },
-                    _ => return error_create(), //if the token is not a string
+                    _ => return error_create("collation isn't specified"), //if the token is not a string
                 }
                 i += 1; //the next token is a complementer token for "COLLATE", which is checked, so no need to return
             }
@@ -57,62 +57,72 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                     Some(found_token) => {
                         match found_token {
                             Token::SET => println!("\"SET\" keyword encountered"), //if the found token is a string token
-                            _ => return error_create(),
+                            _ => return error_create("CHARACTER keyword must be followed by SET"),
                         }
                     },
-                    None => return error_create(), //if the token is not a string
+                    None => return error_create("nothing found after CHARACTER keyword"), //if the token is not a string
                 }
                 match token_vector.get(i+2) {
                     Some(found_token) => {
                         match found_token {
                             Token::STRING_VALUE(string_val) => println!("String value: {string_val}"), //if the found token is a string token
-                            _ => return error_create(),
+                            _ => return error_create("character set is not valid"),
                         }
                     },
-                    _ => return error_create(), //if the token is not a string
+                    _ => return error_create("character set was not specified"), //if the token is not a string
                 }
                 i += 2;
             }
             else {
-                return error_create(); //if the token after the unit naming token isn't a CHARACTER SET or a COLLATE, false should be returned;
+                return error_create("unrelated keyword was used"); //if the token after the unit 
+                                                            //naming token isn't a CHARACTER SET or a COLLATE, false should be returned;
             }
         }
         
 
     }
-    //TODO: this
+    //TODO: write a program which validates create table commands
     else if token_vector[1] == Token::TABLE {
         if token_vector[3] != Token::OPEN_PARENTHESIS {
-            return error_create();
+            return error_create("type specification part is not found");
         }
         let mut base_pattern = false; //whether if the base_pattern was encountered or not
-        for mut i in 4..tokens_len {
+        let mut i = 4;
+        while i < tokens_len {
             if token_vector[i] == Token::CLOSING_PARENTHESIS { //in this type of statements, the closing parenthesis also marks the end of the statement basically
                 if check_next_token(token_vector.get(i+1), Token::SEMICOLON){
-                    println!("semicolon encountered");
-                    return true; //if it's a semicolon, return true
+                    if base_pattern { //if colon was definied after a base pattern (because if it wasn't, an unnecessary comma was put into the command)
+                        println!("semicolon encountered");
+                        return true; //if it's a semicolon, return true
+                    }
+                    else {
+                        return error_create("unnecessary \",\" before the closing parenthetis \")\"");
+                    }
+                    
                 }
                 else {
-                    return error_create();
+                    
+                    return error_create("statement isn't closed properly");
                 }
                 
             }
         
             match token_vector[i] {
                 Token::NO_BACKTICK_NAME_UNIT(_) => {
-                    if i+1 >= tokens_len { //easy checking implemented, so the code has less match statements
-                        return error_create(); //vector would be out of bounds
-                    }
-                    match token_vector[i+1] {
-                        Token::TYPE_KEYWORD(_) => {
+                    // if i+1 >= tokens_len { //easy checking implemented, so the code has less match statements
+                    //     return error_create(""); //vector would be out of bounds
+                    // }
+                    match token_vector.get(i+1) {
+                        Some(Token::TYPE_KEYWORD(_)) => { //THIS MIGHT NOT WORK
                             println!("type keyword found");
                             //if it's a type, then optional keywords can come like PRIMARY KEY or NOT NULL
                             base_pattern = true;
-                            i += 1;
+                            i += 2;
+                            // continue;
       
                             //TODO: check the comma after the end of possible keywords, no matter the keyword
                         }
-                        _ => return error_create()
+                        _ => return error_create("wrong type keyword after field name specification")
                     }
                 }
                 //the comma resets the base pattern, because in the next loop, basic tokens can come as well
@@ -120,24 +130,26 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                     if base_pattern {
                         println!("column definition ended. next column...");
                         base_pattern = false;
+                        i += 1;
                     }
                     else {
-                        return error_create();
+                        return error_create("comma at wrong space");
                     }
                 }
+                //todo: make this part of the code more concise
                 Token::NOT => {
                     if base_pattern {
                         println!("base pattern was already found. NOT keyword is legitimate");
                         if check_next_token(token_vector.get(i+1), Token::NULL){
                             println!("after NOT, NULL token is there");
-                            i += 1; //if the next token is NULL, it's valid, but nothing has to be done apart from incrementing the loop
+                            i += 2; //if the next token is NULL, it's valid, but nothing has to be done apart from incrementing the loop
                         }
                         else {
-                            return error_create();
+                            return error_create("NOT keyword must be followed by NULL");
                         }
                     }
                     else {
-                        return error_create();
+                        return error_create("NOT NULL must be used after field name and type");
                     }
                 }
                 Token::PRIMARY => {
@@ -145,21 +157,31 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                         println!("base pattern was already found. PRIMARY keyword is legitimate");
                         if check_next_token(token_vector.get(i+1), Token::KEY){
                             println!("after PRIMARY, KEY token is there");
-                            i += 1; //if the next token is NULL, it's valid, but nothing has to be done apart from incrementing the loop
+                            i += 2; //if the next token is NULL, it's valid, but nothing has to be done apart from incrementing the loop
                         }
                         else {
-                            return error_create();
+                            return error_create("PRIMARY must be followed by KEY");
                         }
                     }
                     else {
-                        return error_create();
+                        return error_create("PRIMARY KEY must be after field name and type");
                     }
+                }
+                Token::AUTO_INCREMENT => {
+                    if base_pattern {
+                        println!("auto increment token was found in it's rightful place");
+                        i += 1;
+                    }
+                    else {
+                        return error_create("AUTO_INCREMENT was used in the bad place");
+                    }
+
                 }
                 //TODO: Add other optional keywords here
 
 
                 
-                _ => return error_create(),
+                _ => return error_create(format!("wrong keyword in create table statement: {:?}", token_vector[i]).as_str()),
             }
         }
     }
