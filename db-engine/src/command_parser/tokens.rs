@@ -42,12 +42,11 @@ pub enum Token {
     OPEN_PARENTHESIS,
     CLOSING_PARENTHESIS,
     SEMICOLON,
-    
 
     EQUAL_EXPRESSION,
     SMALLER_THAN_OPERATOR,
     BIGGER_THAN_OPERATOR,
-    
+
     ASTERISK,
 
     FROM,
@@ -64,7 +63,6 @@ pub enum Token {
 
     TYPE_KEYWORD(TypeNotation),
 
-
     PRIMARY,
     KEY,
     NOT,
@@ -79,10 +77,4 @@ pub enum Token {
     REFERENCES,
 
     ON,
-    
-
-
-
-
-
 }

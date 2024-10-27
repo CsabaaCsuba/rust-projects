@@ -13,44 +13,38 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
     let token: Token;
 
     let first_char = command_part.chars().nth(0).unwrap(); //safe to unwrap here, outer function doesn't allow empty command part string slice
-    
 
     if first_char == '`' {
         let cmd_part_len = command_part.len();
 
-        let last_char = command_part.chars().nth(cmd_part_len -1).unwrap();
+        let last_char = command_part.chars().nth(cmd_part_len - 1).unwrap();
         if last_char != '`' {
             return None;
         }
-        let token_value = command_part.get(1..cmd_part_len -1).unwrap();
+        let token_value = command_part.get(1..cmd_part_len - 1).unwrap();
 
         let return_value = token_value.to_string();
         return Some(Token::NAME_UNIT(return_value));
-
-    }
-    else if first_char == '"' {
+    } else if first_char == '"' {
         let cmd_part_len = command_part.len();
 
-        let last_char = command_part.chars().nth(cmd_part_len -1).unwrap();
+        let last_char = command_part.chars().nth(cmd_part_len - 1).unwrap();
         if last_char != '"' {
             return None;
         }
-        let token_value = command_part.get(1..cmd_part_len).unwrap();
+        let token_value = command_part.get(1..cmd_part_len - 1).unwrap();
 
         let return_value = token_value.to_string();
         return Some(Token::STRING_VALUE(return_value));
-    }
-    else if (first_char as u8) >= 48 && (first_char as u8) <= 57 {
+    } else if (first_char as u8) >= 48 && (first_char as u8) <= 57 {
         let numeric_value = command_part.parse::<f64>().unwrap();
-        if (numeric_value as i32) as f64 == numeric_value { //if numeric value is a whole number
+        if (numeric_value as i32) as f64 == numeric_value {
+            //if numeric value is a whole number
             return Some(Token::INT_VALUE(numeric_value as i32));
-        }
-        else {
+        } else {
             return Some(Token::DOUBLE_VALUE(numeric_value));
         }
     }
-
-
 
     let experimental_str = command_part.to_owned().to_string();
     let uppercase_cmd = experimental_str.to_uppercase();
@@ -70,7 +64,6 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         "USE" => token = Token::USE,
 
         "INTO" => token = Token::INTO,
-
 
         "TABLE" => token = Token::TABLE,
         "DATABASE" => token = Token::DATABASE,
@@ -103,14 +96,11 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
 
         "VALUES" => token = Token::VALUES,
 
-
         "DOUBLE" => token = Token::TYPE_KEYWORD(TypeNotation::DOUBLE),
         "INT" => token = Token::TYPE_KEYWORD(TypeNotation::INT),
         "TEXT" => token = Token::TYPE_KEYWORD(TypeNotation::TEXT),
         "BOOL" => token = Token::TYPE_KEYWORD(TypeNotation::BOOL),
 
-
-        
         "PRIMARY" => token = Token::PRIMARY,
         "KEY" => token = Token::KEY,
         "NOT" => token = Token::NOT,
@@ -126,17 +116,13 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
 
         "ON" => token = Token::ON,
 
-
-
         _ => token = Token::NO_BACKTICK_NAME_UNIT(experimental_str), //experimental_str is consumed here, but it's no issue
     }
-    
 
     Some(token)
 }
 
-
-fn parse_command(command: &String) -> Vec<Token> {
+pub fn parse_command(command: &String) -> Vec<Token> {
     //TODO: remove newlines / whitespaces, so everything is only separated by spaces
     let mut parsed_tokens: Vec<Token> = Vec::new();
     let command_parts: Vec<&str> = command.split_whitespace().collect();
@@ -158,24 +144,27 @@ fn parse_command(command: &String) -> Vec<Token> {
 
 //UPDATE: this solution is shit
 //check if the last non-whitespace character of the string equals the right_character
-fn compare_last_char(checked_string: &String, right_character: char) -> bool{
+fn compare_last_char(checked_string: &String, right_character: char) -> bool {
     let string_parts: Vec<&str> = checked_string.split_whitespace().collect();
     let string_parts_len = string_parts.len();
     if string_parts_len == 0 {
         return false;
     }
-    if string_parts[string_parts_len-1] == right_character.to_string() {
+    if string_parts[string_parts_len - 1] == right_character.to_string() {
         return true;
     }
-    let last_str_len = string_parts[string_parts_len-1].len();
-    if string_parts[string_parts_len-1].chars().nth(last_str_len-1).unwrap() == right_character {
+    let last_str_len = string_parts[string_parts_len - 1].len();
+    if string_parts[string_parts_len - 1]
+        .chars()
+        .nth(last_str_len - 1)
+        .unwrap()
+        == right_character
+    {
         return true;
     }
-
 
     false
 }
-
 
 pub fn read_command_loop() {
     let mut command = String::with_capacity(128);
@@ -185,17 +174,14 @@ pub fn read_command_loop() {
         while !compare_last_char(&input, ';') {
             io::stdin().read_line(&mut input).unwrap(); //input reading shouldn't really fail
             command.push_str(&input);
-            
         }
-
-        
 
         let parsed_tokens = parse_command(&command);
         if parsed_tokens.capacity() == 0 {
             //if the command fails, an error message is printed -> only a jump to the next iteration is needed
             continue;
         }
-        if validate_syntax(&parsed_tokens){
+        if validate_syntax(&parsed_tokens) {
             //if syntax validation succeeded
         }
 
