@@ -1,6 +1,6 @@
-mod tokens;
+pub mod tokens;
 use tokens::{Token, TypeNotation};
-mod syntax_checker;
+pub mod syntax_checker; //public makes it available to the other parts of the program
 use syntax_checker::validate_syntax;
 
 use std::io;
