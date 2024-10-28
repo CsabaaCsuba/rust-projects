@@ -1,5 +1,5 @@
-use std::mem::discriminant;
 use crate::command_parser::Token;
+use std::mem::discriminant;
 
 fn error_create(msg: &str) -> bool {
     println!("create statement: validation error: {msg}");
@@ -115,9 +115,9 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
         enum Pattern {
             nothing,
             base,
-            keydef //for foreign / primary key definitions
+            keydef, //for foreign / primary key definitions
         }
-        let mut found_pattern = Pattern::nothing ; //whether if the found_pattern was encountered or not
+        let mut found_pattern = Pattern::nothing; //whether if the found_pattern was encountered or not
         let mut i = 4;
         while i < tokens_len {
             if token_vector[i] == Token::CLOSING_PARENTHESIS {
@@ -138,10 +138,9 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
             }
 
             match token_vector[i] {
-                
                 Token::FOREIGN => {
                     // FOREIGN KEY ( some_id_field ) REFERENCES other_table ( other_id_field ) ;
-                    if found_pattern != Pattern::nothing  {
+                    if found_pattern != Pattern::nothing {
                         return error_create("pattern found before foreign key, consider putting a comma before \"FOREIGN\"");
                     }
                     i += 1;
@@ -258,27 +257,34 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                         i += 2; //if the next token is NULL, it's valid, but nothing has to be done apart from incrementing the loop
                         if found_pattern == Pattern::base {
                             println!("token marks only one primary key");
-                        }
-                        else {
+                        } else {
                             println!("token marks composite primary keys");
-                            if !check_next_token(token_vector.get(i), Token::OPEN_PARENTHESIS){
-                                return error_create("opening parenthesis must come after PRIMARY KEY");
+                            if !check_next_token(token_vector.get(i), Token::OPEN_PARENTHESIS) {
+                                return error_create(
+                                    "opening parenthesis must come after PRIMARY KEY",
+                                );
                             }
                             i += 1;
-                            while check_next_token(token_vector.get(i), Token::NO_BACKTICK_NAME_UNIT(String::new())){
+                            while check_next_token(
+                                token_vector.get(i),
+                                Token::NO_BACKTICK_NAME_UNIT(String::new()),
+                            ) {
                                 i += 1;
-                                if check_next_token(token_vector.get(i), Token::COMMA){
+                                if check_next_token(token_vector.get(i), Token::COMMA) {
                                     println!("comma found after primary key");
                                     i += 1;
-                                }
-                                else if check_next_token(token_vector.get(i), Token::CLOSING_PARENTHESIS){
+                                } else if check_next_token(
+                                    token_vector.get(i),
+                                    Token::CLOSING_PARENTHESIS,
+                                ) {
                                     // i += 1;
-                                }
-                                else {
-                                    return error_create("Closing parenthesis missing after composite primary keys");
+                                } else {
+                                    return error_create(
+                                        "Closing parenthesis missing after composite primary keys",
+                                    );
                                 }
                             }
-                            
+
                             i += 1;
                             found_pattern = Pattern::keydef; //so a comma can check it's end
                             continue;
@@ -343,7 +349,7 @@ pub fn validate_insert(token_vector: &Vec<Token>) -> bool {
     //TODO: write the longer variant (column definitions as well)
     let tokens_len = token_vector.len();
     if tokens_len < 6 {
-        return false;
+        return error_insert("insert statement too short");
     }
     //checking the starting - default cases
     if !check_next_token(token_vector.get(0), Token::INSERT) {
@@ -363,6 +369,11 @@ pub fn validate_insert(token_vector: &Vec<Token>) -> bool {
     if !check_next_token(token_vector.get(3), Token::OPEN_PARENTHESIS) {
         return error_insert("opening parenthesis for the columns not found");
     }
+
+    let mut i = 4;
+    while i < tokens_len {
+        
+    }
     //checking the data types
     // let mut columns_included = 0;
     // let mut data_included = 0;
@@ -373,7 +384,6 @@ pub fn validate_insert(token_vector: &Vec<Token>) -> bool {
 
 pub fn validate_update(token_vector: &Vec<Token>) -> bool {
     // UPDATE `table_name` -> SET column = value -> WHERE (optional) -> AND / OR (optional, based on WHERE) -> ORDER BY (optional) -> LIMIT (optional);
-
 
     false
 }

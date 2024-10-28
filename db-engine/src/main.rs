@@ -1,4 +1,3 @@
-
 mod command_parser;
 #[allow(unused_imports)]
 use command_parser::syntax_checker;
@@ -42,8 +41,6 @@ mod tests {
             "CREATE TABLE `t1` ( foreign_id INT , table2_id INT name TEXT UNIQUE , PRIMARY KEY ( foreign_id , table2_id ) ) ;".to_string();
         let table6_tokens = command_parser::parse_command(&table6);
         assert_eq!(true, syntax_checker::validate_syntax(&table6_tokens));
-
-
     }
 
     #[test]

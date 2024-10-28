@@ -3,7 +3,7 @@ use tokens::{Token, TypeNotation};
 pub mod syntax_checker; //public makes it available to the other parts of the program
 use syntax_checker::validate_syntax;
 
-use std::io;
+use std::{io, process::exit};
 
 // static POSSIBLE_TOKENS: [&str; 8] = [
 //     "CREATE", "SELECT", "INSERT", "UPDATE", "DELETE", "ALTER", "TABLE", "DATABASE",
@@ -127,6 +127,36 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
     Some(token)
 }
 
+fn parse_text_based_command(command: &Vec<char>, idx: usize) -> Option<Token> {
+    let mut token;
+    //TODO: write a similar matcher, which, starting from idx, searches for the next tokenizable string-slice
+
+
+    Some(token)
+}
+
+fn parse_entire_command(command: &String) -> Vec<Token> {
+    let parsed_tokens: Vec<Token> = Vec::new();
+    let mut i = 0;
+    let command_chars: Vec<char> = command.chars().collect(); //takes up more space, but more hastle-free
+    let command_len = command_chars.len();
+    println!("command len: {command_len}");
+    while i < command_len {
+        
+        let current_char = command_chars.get(i).unwrap().clone();
+        println!("current char: {:?}", current_char);
+        match current_char {
+            ';' => parse_next_command_part(&command[i..i]),
+            _ => exit(-1),
+        };
+        i += 1;
+    }
+
+    
+
+    parsed_tokens
+}
+
 pub fn parse_command(command: &String) -> Vec<Token> {
     //TODO: remove newlines / whitespaces, so everything is only separated by spaces
     let mut parsed_tokens: Vec<Token> = Vec::new();
@@ -143,6 +173,7 @@ pub fn parse_command(command: &String) -> Vec<Token> {
             }
         }
     }
+    parse_entire_command(command);
 
     parsed_tokens
 }
