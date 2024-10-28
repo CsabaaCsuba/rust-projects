@@ -19,9 +19,29 @@ mod tests {
         assert_eq!(false, syntax_checker::validate_syntax(&table2_tokens));
 
         let table3 =
-            "CREATE TABLE `t1` ( foreign_id INT , name TEXT UNIQUE , FOREIGN KEY ( foreign_id ) REFERENCES foreign_table ( id ) ) ;".to_string();
+            "CREATE TABLE `t1` ( foreign_id INT , name TEXT UNIQUE , FOREIGN KEY ( foreign_id ) REFERENCES foreign_table ( id ) ON DELETE CASCADE ) ;".to_string();
         let table3_tokens = command_parser::parse_command(&table3);
         assert_eq!(true, syntax_checker::validate_syntax(&table3_tokens));
+
+        //must be false, because after FOREIGN KEY, nothing can be used
+        let table4 =
+            "CREATE TABLE `t1` ( foreign_id INT , name TEXT UNIQUE , FOREIGN KEY ( foreign_id ) REFERENCES foreign_table ( id ) ON DELETE SET NULL AUTO_INCREMENT ) ;".to_string();
+        let table4_tokens = command_parser::parse_command(&table4);
+        assert_eq!(false, syntax_checker::validate_syntax(&table4_tokens));
+
+        //should fail, because of NOT NULL
+        let table5 =
+            "CREATE TABLE `t1` ( foreign_id INT , table2_id INT name TEXT UNIQUE , PRIMARY KEY ( foreign_id , table2_id ) NOT NULL ) ;".to_string();
+        let table5_tokens = command_parser::parse_command(&table5);
+        assert_eq!(false, syntax_checker::validate_syntax(&table5_tokens));
+
+        //shouldn't fail
+        let table6 =
+            "CREATE TABLE `t1` ( foreign_id INT , table2_id INT name TEXT UNIQUE , PRIMARY KEY ( foreign_id , table2_id ) ) ;".to_string();
+        let table6_tokens = command_parser::parse_command(&table6);
+        assert_eq!(true, syntax_checker::validate_syntax(&table6_tokens));
+
+
     }
 
     #[test]

@@ -7,6 +7,11 @@ pub enum TypeNotation {
     BOOL,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum StringWrapper {
+    data(String)
+}
+
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {
@@ -81,6 +86,4 @@ pub enum Token {
     NO,
     ACTION, //NO ACTION is an ON DELETE possibility
     RESTRICT,
-
-    
 }

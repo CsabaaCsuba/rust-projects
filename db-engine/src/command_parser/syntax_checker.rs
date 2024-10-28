@@ -13,7 +13,7 @@ fn error_create(msg: &str) -> bool {
 pub fn check_next_token(checked_token: Option<&Token>, check_against: Token) -> bool {
     //checks if a vector.get() element even exists, and then if it's the right token
     match checked_token {
-        Some(token) => return token == &check_against,
+        Some(token) => return discriminant(token) == discriminant(&check_against),
         None => return false,
     }
 }
@@ -110,13 +110,19 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
         if token_vector[3] != Token::OPEN_PARENTHESIS {
             return error_create("type specification part is not found");
         }
-        let mut base_pattern = false; //whether if the base_pattern was encountered or not
+        #[derive(PartialEq)]
+        enum Pattern {
+            nothing,
+            base,
+            keydef //for foreign / primary key definitions
+        }
+        let mut found_pattern = Pattern::nothing ; //whether if the found_pattern was encountered or not
         let mut i = 4;
         while i < tokens_len {
             if token_vector[i] == Token::CLOSING_PARENTHESIS {
                 //in this type of statements, the closing parenthesis also marks the end of the statement basically
                 if check_next_token(token_vector.get(i + 1), Token::SEMICOLON) {
-                    if base_pattern {
+                    if found_pattern != Pattern::nothing {
                         //if colon was definied after a base pattern (because if it wasn't, an unnecessary comma was put into the command)
                         println!("semicolon encountered");
                         return true; //if it's a semicolon, return true
@@ -134,8 +140,8 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                 
                 Token::FOREIGN => {
                     // FOREIGN KEY ( some_id_field ) REFERENCES other_table ( other_id_field ) ;
-                    if base_pattern  {
-                        return error_create("base pattern wasn't set back to false");
+                    if found_pattern != Pattern::nothing  {
+                        return error_create("pattern found before foreign key, consider putting a comma before \"FOREIGN\"");
                     }
                     i += 1;
                     let foreign_syntax = vec![
@@ -159,8 +165,42 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                         return error_create("FOREIGN KEY pattern invalid");
                     }
                     //TODO: check the things that can come after on-delete (CASCADE, SET NULL, SET DEFAULT, NO ACTION, RESTRICT)
+                    match token_vector.get(i){
+                        Some(token) => {
+                            match token {
+                                Token::CASCADE | Token::RESTRICT => i += 1,
+                                Token::SET => {
+                                    if check_next_token(token_vector.get(i + 2), Token::NULL){
+                                        i += 2;
+                                    }
+                                    else if check_next_token(token_vector.get(i + 2), Token::DEFAULT){
+                                        i += 2;
+                                    }
+                                    else {
+                                        return error_create("after SET, NULL and DEFAULT can come");
+                                    }
+                                }
+                                Token::NO => {
+                                    if check_next_token(token_vector.get(i + 2), Token::ACTION){
+                                        i += 2;
+                                    }
+                                    else {
+                                        return error_create("after NO, ACTION can come in this context only");
+                                    }
+                                }
+                                _ => return error_create(format!("{token:?}unexpected keyword after ON DELETE (the right ones: CASCADE, SET NULL, SET DEFAULT, NO ACTION, RESTRICT)").as_str())
+                            }
+                        }
+                        None => return error_create("expected keyword after ON DELETE (CASCADE, SET NULL, SET DEFAULT, NO ACTION, RESTRICT)")
+                    }
 
-                    base_pattern = true; //this was a complete base pattern, a comma can come after it
+                    // if check_next_token(token_vector.get(i), Token::COMMA){
+                    //     i += 1;
+                    // }
+                    // else {
+                    //     return error_create("After foreign key definition, a comma should be put");
+                    // }
+                    found_pattern = Pattern::keydef; //this was a complete base pattern, a comma can come after it
                 }
 
                 Token::NO_BACKTICK_NAME_UNIT(_) => {
@@ -170,28 +210,43 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                     match token_vector.get(i + 1) {
                         Some(found_token) => {
                             //THIS MIGHT NOT WORK
-                            match found_token {
-                                Token::TYPE_KEYWORD(_) => {
-                                    println!("type keyword found");
-                                    //if it's a type, then optional keywords can come like PRIMARY KEY or NOT NULL
-                                    base_pattern = true;
-                                    i += 2;
-                                }
-                                _ => {
-                                    return error_create(
-                                        "wrong type keyword after field name specification",
-                                    )
+                            if found_pattern == Pattern::nothing {
+                                match found_token {
+                                    Token::TYPE_KEYWORD(_) => {
+                                        println!("type keyword found");
+                                        //if it's a type, then optional keywords can come like PRIMARY KEY or NOT NULL
+                                        found_pattern = Pattern::base;
+                                        i += 2;
+                                    }
+                                    _ => {
+                                        return error_create(
+                                            "wrong type keyword after field name specification",
+                                        )
+                                    }
                                 }
                             }
+                            else if found_pattern == Pattern::keydef {
+                                //currently commas are skipping the next name_units as well, so the only legit character is a closing parenthesis
+                                if check_next_token(token_vector.get(i + 2), Token:: CLOSING_PARENTHESIS){
+                                    i += 2;
+                                }
+                                else {
+                                    return error_create("Wrong ");
+                                }
+                            }
+                            else {
+                                return error_create("name specification at the wrong place");
+                            }
+                            
                         }
                         None => return error_create("Keyword not found after column name"),
                     }
                 }
                 //the comma resets the base pattern, because in the next loop, basic tokens can come as well
                 Token::COMMA => {
-                    if base_pattern {
+                    if found_pattern != Pattern::nothing {
                         println!("column definition ended. next column...");
-                        base_pattern = false;
+                        found_pattern = Pattern::nothing;
                         i += 1;
                     } else {
                         return error_create("comma at wrong space");
@@ -199,7 +254,7 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                 }
                 //todo: make this part of the code more concise
                 Token::NOT => {
-                    if base_pattern {
+                    if found_pattern == Pattern::base {
                         println!("base pattern was already found. NOT keyword is legitimate");
                         if check_next_token(token_vector.get(i + 1), Token::NULL) {
                             println!("after NOT, NULL token is there");
@@ -212,34 +267,60 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                     }
                 }
                 Token::PRIMARY => {
-                    if base_pattern {
-                        println!("base pattern was already found. PRIMARY keyword is legitimate");
-                        if check_next_token(token_vector.get(i + 1), Token::KEY) {
-                            println!("after PRIMARY, KEY token is there");
-                            i += 2; //if the next token is NULL, it's valid, but nothing has to be done apart from incrementing the loop
-                        } else {
-                            return error_create("PRIMARY must be followed by KEY");
+                    if check_next_token(token_vector.get(i + 1), Token::KEY) {
+                        println!("after PRIMARY, KEY token is there");
+                        i += 2; //if the next token is NULL, it's valid, but nothing has to be done apart from incrementing the loop
+                        if found_pattern == Pattern::base {
+                            println!("token marks only one primary key");
+                        }
+                        else {
+                            println!("token marks composite primary keys");
+                            if !check_next_token(token_vector.get(i), Token::OPEN_PARENTHESIS){
+                                return error_create("opening parenthesis must come after PRIMARY KEY");
+                            }
+                            i += 1;
+                            while check_next_token(token_vector.get(i), Token::NO_BACKTICK_NAME_UNIT(String::new())){
+                                i += 1;
+                                if check_next_token(token_vector.get(i), Token::COMMA){
+                                    println!("comma found after primary key");
+                                    // i += 1;
+                                }
+                                else if check_next_token(token_vector.get(i), Token::CLOSING_PARENTHESIS){
+                                    // i += 1;
+                                }
+                                else {
+                                    return error_create("Closing parenthesis missing after composite primary keys");
+                                }
+                            }
+                            
+                            i += 1;
+                            found_pattern = Pattern::keydef; //so a comma can check it's end
+                            continue;
                         }
                     } else {
-                        return error_create("PRIMARY KEY must be after field name and type");
+                        return error_create("PRIMARY must be followed by KEY");
                     }
                 }
                 Token::AUTO_INCREMENT => {
-                    if base_pattern {
+                    if found_pattern == Pattern::base {
                         println!("auto increment token was found in it's rightful place");
                         i += 1;
                     } else {
-                        return error_create("AUTO_INCREMENT was used in the bad place");
+                        return error_create("AUTO_INCREMENT was used incorrectly");
                     }
                 }
                 Token::UNIQUE => {
-                    if base_pattern {
+                    if found_pattern == Pattern::base {
                         println!("unique keyword was found in it's right place");
                         i += 1;
                     } else {
                         return error_create("UNIQUE should be after a keyword");
                     }
                 }
+                // Token::SEMICOLON => {
+                //     println!("found semicolon");
+                //     return true;
+                // }
                 //TODO: Add other optional keywords here
                 _ => {
                     return error_create(
