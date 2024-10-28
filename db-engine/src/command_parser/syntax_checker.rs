@@ -110,6 +110,7 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
         if token_vector[3] != Token::OPEN_PARENTHESIS {
             return error_create("type specification part is not found");
         }
+        #[allow(non_camel_case_types)]
         #[derive(PartialEq)]
         enum Pattern {
             nothing,

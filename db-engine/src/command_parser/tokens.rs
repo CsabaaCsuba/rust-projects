@@ -7,9 +7,10 @@ pub enum TypeNotation {
     BOOL,
 }
 
+#[allow(unused)]
 #[derive(Debug, PartialEq, Clone)]
 pub enum StringWrapper {
-    data(String)
+    Data(String)
 }
 
 #[allow(non_camel_case_types)]
