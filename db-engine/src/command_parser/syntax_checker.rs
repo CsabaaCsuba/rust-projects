@@ -210,34 +210,19 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                     match token_vector.get(i + 1) {
                         Some(found_token) => {
                             //THIS MIGHT NOT WORK
-                            if found_pattern == Pattern::nothing {
-                                match found_token {
-                                    Token::TYPE_KEYWORD(_) => {
-                                        println!("type keyword found");
-                                        //if it's a type, then optional keywords can come like PRIMARY KEY or NOT NULL
-                                        found_pattern = Pattern::base;
-                                        i += 2;
-                                    }
-                                    _ => {
-                                        return error_create(
-                                            "wrong type keyword after field name specification",
-                                        )
-                                    }
-                                }
-                            }
-                            else if found_pattern == Pattern::keydef {
-                                //currently commas are skipping the next name_units as well, so the only legit character is a closing parenthesis
-                                if check_next_token(token_vector.get(i + 2), Token:: CLOSING_PARENTHESIS){
+                            match found_token {
+                                Token::TYPE_KEYWORD(_) => {
+                                    println!("type keyword found");
+                                    //if it's a type, then optional keywords can come like PRIMARY KEY or NOT NULL
+                                    found_pattern = Pattern::base;
                                     i += 2;
                                 }
-                                else {
-                                    return error_create("Wrong ");
+                                _ => {
+                                    return error_create(
+                                        "wrong type keyword after field name specification",
+                                    )
                                 }
                             }
-                            else {
-                                return error_create("name specification at the wrong place");
-                            }
-                            
                         }
                         None => return error_create("Keyword not found after column name"),
                     }
@@ -283,7 +268,7 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                                 i += 1;
                                 if check_next_token(token_vector.get(i), Token::COMMA){
                                     println!("comma found after primary key");
-                                    // i += 1;
+                                    i += 1;
                                 }
                                 else if check_next_token(token_vector.get(i), Token::CLOSING_PARENTHESIS){
                                     // i += 1;
