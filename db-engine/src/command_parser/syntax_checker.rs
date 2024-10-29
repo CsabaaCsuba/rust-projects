@@ -437,6 +437,11 @@ pub fn validate_drop(token_vector: &Vec<Token>) -> bool {
     true
 }
 
+pub fn validate_alter(token_vector: &Vec<Token>) -> bool {
+
+    true
+}
+
 pub fn validate_syntax(token_vector: &Vec<Token>) -> bool {
     if token_vector.len() < 1 {
         return false;
@@ -449,6 +454,7 @@ pub fn validate_syntax(token_vector: &Vec<Token>) -> bool {
         Token::DELETE => return validate_delete(token_vector),
         Token::USE => return validate_use(token_vector),
         Token::DROP => return validate_drop(token_vector),
+        Token::ALTER => return validate_alter(token_vector),
 
         _ => return false, //if it's not an actual starting SQL statement
     }
