@@ -1,6 +1,6 @@
 1. write a better tokenizer, which doesn't rely on .split_whitespaces() [done]
-2. write a wrapper enum for enums with a string value
-3. write the insert statement validator
+2. write a wrapper enum for enums with a string value [done]
+3. write the insert statement validator [in progress]
 4. write the select statement validator
 5. write the update statement validator
 6. write the select statement validator

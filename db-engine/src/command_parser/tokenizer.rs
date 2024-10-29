@@ -1,4 +1,4 @@
-use super::tokens::{Token, TypeNotation};
+use super::tokens::{Token, TypeNotation, StringWrapper};
 
 fn parse_next_command_part(command_part: &str) -> Option<Token> {
     let token: Token;
@@ -15,7 +15,7 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         let token_value = command_part.get(1..cmd_part_len - 1).unwrap();
 
         let return_value = token_value.to_string();
-        return Some(Token::NAME_UNIT(return_value));
+        return Some(Token::NAME_UNIT(StringWrapper::Data(return_value)));
     } else if first_char == '"' {
         let cmd_part_len = command_part.len();
 
@@ -26,7 +26,7 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         let token_value = command_part.get(1..cmd_part_len - 1).unwrap();
 
         let return_value = token_value.to_string();
-        return Some(Token::STRING_VALUE(return_value));
+        return Some(Token::STRING_VALUE(StringWrapper::Data(return_value)));
     } else if (first_char as u8) >= 48 && (first_char as u8) <= 57 {
         let numeric_value = command_part.parse::<f64>().unwrap();
         if (numeric_value as i32) as f64 == numeric_value {
@@ -112,7 +112,7 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         "ACTION" => token = Token::ACTION,
         "RESTRICT" => token = Token::RESTRICT,
 
-        _ => token = Token::NO_BACKTICK_NAME_UNIT(experimental_str), //experimental_str is consumed here, but it's no issue
+        _ => token = Token::NO_BACKTICK_NAME_UNIT(StringWrapper::Data(experimental_str)), //experimental_str is consumed here, but it's no issue
     }
 
     Some(token)
@@ -125,7 +125,7 @@ enum number_type {
     NaN,
 }
 
-fn str_to_double(command_string: &[u8], idx: usize, number_ptr: &mut number_type) -> usize {
+fn str_to_num(command_string: &[u8], idx: usize, number_ptr: &mut number_type) -> usize {
     //TODO: write this function
     //returns the new idx value
     let parsed_num: number_type; //it gets value once, so it doesn't have to be mutable
@@ -134,7 +134,7 @@ fn str_to_double(command_string: &[u8], idx: usize, number_ptr: &mut number_type
     let mut is_double = false;
     let mut j: f64 = 1.0;
     while i < command_string.len() {
-        if command_string[i] > 48 && command_string[i] < 57 {
+        if command_string[i] >= 48 && command_string[i] <= 57 {
             if is_double {
                 currently_parsed += (command_string[i] - 48) as f64 / (f64::powf(10.0, j));
                 j += 1.0;
@@ -172,17 +172,17 @@ fn str_to_double(command_string: &[u8], idx: usize, number_ptr: &mut number_type
                 number_type::INT(currently_parsed as i32)
             };
             *number_ptr = parsed_num;
-            return i;
+            return i-1;
         }
         else {
-            println!("illegal character encountered when parsing number");
+            println!("illegal character encountered when parsing number: {}", command_string[i]);
             return 0;
         }
 
         i += 1;
     }
 
-    i
+    i-1
 }
 
 fn parse_until_byte(command_string: &[u8], idx: usize, end_byte: u8) -> String {
@@ -190,13 +190,34 @@ fn parse_until_byte(command_string: &[u8], idx: usize, end_byte: u8) -> String {
     println!("byte-based string parsing started");
     let mut i = idx;
     let mut return_string = String::new();
-    while command_string[i] != end_byte && i < string_len {
-        println!("current byte: {}", command_string[i]);
-        //it can be unsafe since the IO reader does a UTF8 validity check
-        let current_char = unsafe { char::from_u32_unchecked(command_string[i] as u32) };
-        return_string.push(current_char);
-        i += 1;
+    if end_byte == b' ' { //put here so it doesn't have to get checked on each iteration
+        while i < string_len && command_string[i] != end_byte {
+            println!("current byte: {}", command_string[i]);
+            //TODO: check for whitespaces / other terminators like ")" or "," or ";" when the end_byte is a space
+            match command_string[i] {
+                b')' | b',' | b';' => {
+                    return return_string;
+                }
+                _ => ()
+            }
+            
+            let current_char = unsafe { char::from_u32_unchecked(command_string[i] as u32) };
+            println!("current char: {}", current_char);
+            return_string.push(current_char);
+            i += 1;
+        }
     }
+    else {
+        while i < string_len && command_string[i] != end_byte {
+            println!("current byte: {}", command_string[i] );
+            //it can't be unsafe since the IO reader does a UTF8 validity check
+            let current_char = unsafe { char::from_u32_unchecked(command_string[i] as u32) };
+            println!("current char: {}", current_char);
+            return_string.push(current_char);
+            i += 1;
+        }
+    }
+    
 
     return_string
 }
@@ -211,7 +232,7 @@ fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut
             println!("string with 0 characters was read");
             return 0;
         }
-        *token_ptr = Token::STRING_VALUE(return_string);
+        *token_ptr = Token::STRING_VALUE(StringWrapper::Data(return_string));
 
         return idx + string_len + 1; //for the ending character
     } else if command_string[i] == b'`' {
@@ -221,12 +242,12 @@ fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut
             println!("no-backtick name unit with 0 characters was read");
             return 0;
         }
-        *token_ptr = Token::NAME_UNIT(return_string);
+        *token_ptr = Token::NAME_UNIT(StringWrapper::Data(return_string));
 
         return idx + string_len + 1;
     } else if command_string[i] > 48 && command_string[i] < 57 {
         let mut parsed_num: number_type = number_type::NaN;
-        let new_idx = str_to_double(command_string, i, &mut parsed_num);
+        let new_idx = str_to_num(command_string, i, &mut parsed_num);
         if i < new_idx {
             //if parsing was succesfull
             match parsed_num {
@@ -246,7 +267,7 @@ fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut
             println!("parsing number failed...");
             return 0;
         }
-    } else { //TODO: write checking for no_backick_name_units and actual tokens
+    } else {
         let found_string = parse_until_byte(command_string, i, b' ');
         let string_len = found_string.len();
         if string_len == 0 {
@@ -257,7 +278,7 @@ fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut
         match command_token {
             Some(found_token) => {
                 *token_ptr = found_token;
-                return idx + string_len;
+                return idx + string_len -1; //minus 1 so it doesn't go to the next character because of the length addition. In the other cases this is not a problem
             }
             None => {
                 println!("keyword not found...");

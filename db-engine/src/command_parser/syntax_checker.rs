@@ -1,5 +1,5 @@
-use crate::command_parser::Token;
-use std::mem::discriminant;
+use crate::command_parser::{tokens::StringWrapper, Token};
+use std::{env::current_exe, mem::discriminant};
 
 fn error_create(msg: &str) -> bool {
     println!("create statement: validation error: {msg}");
@@ -54,7 +54,7 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
     }
 
     match &token_vector[2] {
-        Token::NAME_UNIT(string) | Token::NO_BACKTICK_NAME_UNIT(string) => println!("Name unit is {string}"),
+        Token::NAME_UNIT(string) | Token::NO_BACKTICK_NAME_UNIT(string) => println!("Name unit is {string:?}"),
         _ => return error_create("incorrect name for the database"),
     }
     let mut i = 3;
@@ -68,7 +68,7 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                 println!("collate keyword encountered");
                 match token_vector.get(i + 1) {
                     Some(found_token) => match found_token {
-                        Token::STRING_VALUE(string_val) => println!("String value: {string_val}"),
+                        Token::STRING_VALUE(string_val) => println!("Collation string value: {string_val:?}"),
                         _ => return error_create("collation isn't specified properly"),
                     },
                     _ => return error_create("collation isn't specified"), //if the token is not a string
@@ -89,7 +89,7 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                     Some(found_token) => {
                         match found_token {
                             Token::STRING_VALUE(string_val) => {
-                                println!("String value: {string_val}")
+                                println!("String value: {string_val:?}")
                             } //if the found token is a string token
                             _ => return error_create("character set is not valid"),
                         }
@@ -147,12 +147,12 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                     let foreign_syntax = vec![
                         Token::KEY,
                         Token::OPEN_PARENTHESIS,
-                        Token::NO_BACKTICK_NAME_UNIT(String::new()),
+                        Token::NO_BACKTICK_NAME_UNIT(StringWrapper::Filler),
                         Token::CLOSING_PARENTHESIS,
                         Token::REFERENCES,
-                        Token::NO_BACKTICK_NAME_UNIT(String::new()),
+                        Token::NO_BACKTICK_NAME_UNIT(StringWrapper::Filler),
                         Token::OPEN_PARENTHESIS,
-                        Token::NO_BACKTICK_NAME_UNIT(String::new()),
+                        Token::NO_BACKTICK_NAME_UNIT(StringWrapper::Filler),
                         Token::CLOSING_PARENTHESIS,
                         Token::ON,
                         Token::DELETE,
@@ -267,7 +267,7 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
                             i += 1;
                             while check_next_token(
                                 token_vector.get(i),
-                                Token::NO_BACKTICK_NAME_UNIT(String::new()),
+                                Token::NO_BACKTICK_NAME_UNIT(StringWrapper::Filler),
                             ) {
                                 i += 1;
                                 if check_next_token(token_vector.get(i), Token::COMMA) {
@@ -366,12 +366,116 @@ pub fn validate_insert(token_vector: &Vec<Token>) -> bool {
         },
         None => return error_insert("sentence too short"),
     }
-    if !check_next_token(token_vector.get(3), Token::OPEN_PARENTHESIS) {
-        return error_insert("opening parenthesis for the columns not found");
+    // if !check_next_token(token_vector.get(3), Token::OPEN_PARENTHESIS) {
+    //     return error_insert("opening parenthesis for the columns not found");
+    // }
+    match token_vector[3] {
+        Token::VALUES => { //omitting column order definition
+            println!("short syntax used");
+            if !check_next_token(token_vector.get(4), Token::OPEN_PARENTHESIS) {
+                println!("expected opening parenthesis after \"VALUES\" keyword");
+                return false;
+            }
+            let mut i = 5;
+            let mut values_count = 0;
+            let mut current_rows_values = 0;
+            let mut is_first_row = true;
+            while i < tokens_len {
+                match token_vector.get(i) {
+                    Some(found_token) => {
+                        match found_token {
+                            Token::STRING_VALUE(_) | Token::BOOL_VALUE(_) | Token::INT_VALUE(_) | Token::DOUBLE_VALUE(_) => {
+                                println!("found value: {found_token:?}");
+                                i += 1;
+                                if is_first_row {
+                                    values_count += 1;
+                                }
+                                else {
+                                    current_rows_values += 1;
+                                    if current_rows_values > values_count {
+                                        return error_create("there are incosistent data values in rows");
+                                    }
+                                }
+                                match token_vector.get(i) {
+                                    Some(Token::COMMA) => {
+                                        println!("comma found after value. expecting more values.");
+                                        i += 1;
+                                        continue;
+                                    }
+                                    Some(Token::CLOSING_PARENTHESIS) => {
+                                        if !is_first_row {
+                                            if current_rows_values != values_count {
+                                                return error_create("last parsed data row's value count is different from the first one.");
+                                            }
+                                        }
+                                        println!("closing parenthesis found. values closed.");
+                                        i += 1;
+                                        if check_next_token(token_vector.get(i), Token::SEMICOLON){
+                                            println!("semicolon found after opening parenthesis. Statement valid.");
+                                            return true;
+                                        }
+                                        else if check_next_token(token_vector.get(i), Token::COMMA){
+                                            println!("comma found after closing parenthesis, an other row of data has to be inserted");
+                                            i += 1;
+                                            if check_next_token(token_vector.get(i), Token::OPEN_PARENTHESIS){
+                                                println!("opening parenthesis found");
+                                                if is_first_row {
+                                                    is_first_row = false;
+                                                    current_rows_values = 0;
+                                                }
+                                                i += 1;
+                                                continue;
+                                            }
+                                            else {
+                                                return error_insert("after comma, an other insert line must come");
+                                            }
+                                        }
+                                        else {
+                                            return error_insert("missing semicolon at the end of the statement");
+                                        }
+                                    }
+                                    Some(other_token) => {
+                                        return error_insert(format!("invalid token ({other_token:?}) after found value.").as_str());
+                                    }
+                                    None => {
+                                        return error_insert("statement too shrot, ran out of tokens");
+                                    }
+                                }
+                            }
+                            _ => {
+                                return error_insert(format!("token {found_token:?} isn't implemented as data type").as_str())
+                            }
+                        }
+                    }
+                    None => return error_create("INSERT statement too short, went out of bounds")
+                }
+                // idk why I wrote this
+                // if check_next_token(token_vector.get(i), Token::NO_BACKTICK_NAME_UNIT(StringWrapper::Filler)) {
+                //     i += 1;
+                //     if check_next_token(token_vector.get(i), Token::COMMA){
+                //         println!("comma found. awaiting next value")
+                //     }
+                //     else if check_next_token(token_vector.get(i), Token::CLOSING_PARENTHESIS){
+
+                //     }
+                // }
+            }
+
+
+        }
+        Token::SET => { //set syntax
+            println!("set syntax used");
+            return false; //unimplemented
+        }
+        Token::OPEN_PARENTHESIS => { //uses column order definition
+            println!("casual syntax used");
+            return false;
+        }
+        _ => {
+            return error_insert("After INSERT INTO `db`, only VALUES, SET, or an opening parenthesis \"(\" can come.");
+        }
     }
 
-    let mut i = 4;
-    while i < tokens_len {}
     //checking the data types
     // let mut columns_included = 0;
     // let mut data_included = 0;

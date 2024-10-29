@@ -11,6 +11,7 @@ pub enum TypeNotation {
 #[derive(Debug, PartialEq, Clone)]
 pub enum StringWrapper {
     Data(String),
+    Filler
 }
 
 #[allow(non_camel_case_types)]
@@ -32,10 +33,10 @@ pub enum Token {
 
     INTO,
 
-    NO_BACKTICK_NAME_UNIT(String), //fields upon creation
+    NO_BACKTICK_NAME_UNIT(StringWrapper), //fields upon creation
 
-    NAME_UNIT(String),
-    STRING_VALUE(String),
+    NAME_UNIT(StringWrapper),
+    STRING_VALUE(StringWrapper),
     INT_VALUE(i32),
     BOOL_VALUE(bool),
     DOUBLE_VALUE(f64),

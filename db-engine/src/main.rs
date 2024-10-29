@@ -1,6 +1,7 @@
 mod command_parser;
 #[allow(unused_imports)]
-use command_parser::{syntax_checker, tokenizer};
+use command_parser::{syntax_checker, tokenizer, tokens};
+use tokens::{Token, StringWrapper};
 // mod engine;
 
 #[cfg(test)]
@@ -57,6 +58,28 @@ mod tests {
         let false_db2 = "CREATE `bruh` CHARACTER SET \"a\" ;".to_string();
         let false_tokens2 = tokenizer::parse_command(&false_db2);
         assert_eq!(false, syntax_checker::validate_syntax(&false_tokens2));
+    }
+
+    #[test]
+    fn insert_into() {
+        let insert1 = "INSERT INTO `bruh` VALUES (\"Marcos\", 18, false);".to_string();
+        let insert1_tokens = tokenizer::parse_command(&insert1);
+        //just to check if there are no more parser bugs
+        let expected_result = vec![Token::INSERT, Token::INTO, Token::NAME_UNIT(StringWrapper::Data(String::from("bruh"))),
+            Token::VALUES, Token::OPEN_PARENTHESIS, Token::STRING_VALUE(StringWrapper::Data(String::from("Marcos"))), Token::COMMA,
+            Token::INT_VALUE(18), Token::COMMA, Token::BOOL_VALUE(false), Token::CLOSING_PARENTHESIS, Token::SEMICOLON
+        ];
+        assert_eq!(expected_result, insert1_tokens);
+        // assert_eq!(true, syntax_checker::validate_syntax(&insert1_tokens));
+
+        let insert2 = "INSERT INTO `bruh` VALUES (\"Marcos\", 18, false), (\"Alexos\", 20, true);".to_string();
+        let insert2_tokens = tokenizer::parse_command(&insert2);
+        assert_eq!(true, syntax_checker::validate_syntax(&insert2_tokens));
+
+        //due to the differing amount of fields from the first value, it is going to spit an error
+        let insert3 = "INSERT INTO `bruh` VALUES (\"Marcos\", 18, false), (\"Alexos\", 20, true), (\"Jack\", \"corruptdata\", 19, true);".to_string();
+        let insert3_tokens = tokenizer::parse_command(&insert3);
+        assert_eq!(false, syntax_checker::validate_syntax(&insert3_tokens));
     }
 }
 
