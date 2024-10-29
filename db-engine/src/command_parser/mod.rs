@@ -3,7 +3,7 @@ use tokens::{Token, TypeNotation};
 pub mod syntax_checker; //public makes it available to the other parts of the program
 use syntax_checker::validate_syntax;
 
-use std::{io, process::exit};
+use std::{char, io};
 
 // static POSSIBLE_TOKENS: [&str; 8] = [
 //     "CREATE", "SELECT", "INSERT", "UPDATE", "DELETE", "ALTER", "TABLE", "DATABASE",
@@ -127,53 +127,200 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
     Some(token)
 }
 
-fn parse_text_based_command(command: &Vec<char>, idx: usize) -> Option<Token> {
-    let mut token;
-    //TODO: write a similar matcher, which, starting from idx, searches for the next tokenizable string-slice
-
-
-    Some(token)
+#[allow(non_camel_case_types)]
+enum number_type {
+    INT(i32),
+    DOUBLE(f64),
+    NaN,
 }
 
-fn parse_entire_command(command: &String) -> Vec<Token> {
-    let parsed_tokens: Vec<Token> = Vec::new();
-    let mut i = 0;
-    let command_chars: Vec<char> = command.chars().collect(); //takes up more space, but more hastle-free
-    let command_len = command_chars.len();
-    println!("command len: {command_len}");
-    while i < command_len {
-        
-        let current_char = command_chars.get(i).unwrap().clone();
-        println!("current char: {:?}", current_char);
-        match current_char {
-            ';' => parse_next_command_part(&command[i..i]),
-            _ => exit(-1),
-        };
+fn str_to_double(command_string: &[u8], idx: usize, number_ptr: &mut number_type) -> usize {
+    //TODO: write this function
+    //returns the new idx value
+    let parsed_num: number_type; //it gets value once, so it doesn't have to be mutable
+    let mut currently_parsed: f64 = 0.0;
+    let mut i = idx;
+    let mut is_double = false;
+    let mut j: f64 = 1.0;
+    while i < command_string.len() {
+        if command_string[i] > 48 && command_string[i] < 57 {
+            if is_double {
+                currently_parsed += (command_string[i] - 48) as f64 / (f64::powf(10.0, j));
+                j += 1.0;
+
+            } else {
+                currently_parsed = currently_parsed * 10.0;
+                currently_parsed += (command_string[i] - 48) as f64;
+            }
+        } else if command_string[i] == b'.' {
+            //if number isn't a whole number
+            is_double = true;
+        } else if command_string[i] == b'\n' //if whitespace / end character reached (it's not incremented because of the end characters' parsing)
+            || command_string[i] == b'\r'
+            || command_string[i] == b' '
+            || command_string[i] == b';'
+            || command_string[i] == b',' 
+            || command_string[i] == b'+'
+            || command_string[i] == b'-'
+            || command_string[i] == b'/'
+            || command_string[i] == b'<'
+            || command_string[i] == b'>'
+            || command_string[i] == b'='
+            || command_string[i] == b'*'
+            || command_string[i] == b'('
+            || command_string[i] == b')'
+            || command_string[i] == b'&'
+            || command_string[i] == b'|'
+            || command_string[i] == b'^' //bitwise xor
+            || command_string[i] == b'~' //bitwise not
+        {
+            parsed_num = if is_double {
+                number_type::DOUBLE(currently_parsed)
+                
+            } else {
+                number_type::INT(currently_parsed as i32)
+            };
+            *number_ptr = parsed_num;
+            return i;
+        }
+        else {
+            println!("illegal character encountered when parsing number");
+            return 0;
+        }
+
         i += 1;
     }
 
-    
+    i
+}
+
+fn parse_until_byte(command_string: &[u8], idx: usize, end_byte: u8) -> String {
+    let string_len = command_string.len();
+    println!("byte-based string parsing started");
+    let mut i = idx;
+    let mut return_string = String::new();
+    while command_string[i] != end_byte && i < string_len {
+        println!("current byte: {}", command_string[i]);
+        //it can be unsafe since the IO reader does a UTF8 validity check
+        let current_char = unsafe { char::from_u32_unchecked(command_string[i] as u32) };
+        return_string.push(current_char);
+        i += 1;
+    }
+
+    return_string
+}
+
+//returns the increased index variable, AND modified the token's memory address
+fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut Token) -> usize {
+    let i: usize = idx; //so it starts from idx
+    if command_string[i] == b'"' {
+        let return_string = parse_until_byte(command_string, i+1, b'"');
+        let string_len = return_string.len();
+        if string_len == 0 {
+            println!("string with 0 characters was read");
+            return 0;
+        }
+        *token_ptr = Token::STRING_VALUE(return_string);
+
+        return idx + string_len + 1; //for the ending character
+    } else if command_string[i] == b'`' {
+        let return_string = parse_until_byte(command_string, i+1, b'`');
+        let string_len = return_string.len();
+        if string_len == 0 {
+            println!("no-backtick name unit with 0 characters was read");
+            return 0;
+        }
+        *token_ptr = Token::NO_BACKTICK_NAME_UNIT(return_string);
+
+        return idx + string_len + 1;
+    } else if command_string[i] > 48 && command_string[i] < 57 {
+        let mut parsed_num: number_type = number_type::NaN;
+        let new_idx = str_to_double(command_string, i, &mut parsed_num);
+        if i < new_idx {
+            //if parsing was succesfull
+            match parsed_num {
+                number_type::INT(val) => {
+                    *token_ptr = Token::INT_VALUE(val);
+                }
+                number_type::DOUBLE(val) => {
+                    *token_ptr = Token::DOUBLE_VALUE(val);
+                }
+                number_type::NaN => {
+                    println!("parser moved forward, but number was not found??");
+                    return 0;
+                }
+            }
+            return new_idx;
+        } else {
+            println!("parsing number failed...");
+            return 0;
+        }
+    } else { //TODO: write checking for no_backick_name_units and actual tokens
+        let found_string = parse_until_byte(command_string, i, b' ');
+        let string_len = found_string.len();
+        if string_len == 0 {
+            println!("parsed string's len was 0");
+            return 0;
+        }
+        let command_token = parse_next_command_part(&found_string);
+        match command_token {
+            Some(found_token) => {
+                *token_ptr = found_token;
+                return idx + string_len;
+            }
+            None => {
+                println!("keyword not found...");
+                return 0;
+            }
+        }
+        
+        
+    }
+}
+
+fn parse_entire_command(command: &String) -> Vec<Token> {
+    let mut parsed_tokens: Vec<Token> = Vec::new();
+    let mut i = 0;
+    let command_bytes = command.as_bytes();
+    let mut token_space: Token = Token::NO; //some filler has to be there
+    while i < command_bytes.len() {
+        match command_bytes[i] {
+            b'<' => parsed_tokens.push(Token::SMALLER_THAN_OPERATOR),
+            b'>' => parsed_tokens.push(Token::BIGGER_THAN_OPERATOR),
+            b'=' => parsed_tokens.push(Token::EQUAL_EXPRESSION),
+            b'(' => parsed_tokens.push(Token::OPEN_PARENTHESIS),
+            b')' => parsed_tokens.push(Token::CLOSING_PARENTHESIS),
+            b',' => parsed_tokens.push(Token::COMMA),
+            b';' => parsed_tokens.push(Token::SEMICOLON),
+            b'*' => parsed_tokens.push(Token::ASTERISK),
+            b'\n' |b'\r' |b' ' => (), //if it's a formatter, just continue
+
+
+            //in case of an other char, if parse was succesfull
+            _ => {
+                let new_idx = parse_next_multi_char_part(command_bytes, i, &mut token_space);
+                println!("new idx: {new_idx}, i: {i}");
+                if i < new_idx { //if idx changed, the parsing was succesfull
+                    println!("token found: {:?}", &token_space);
+                    parsed_tokens.push(token_space.clone());
+                    i = new_idx;
+                } else { //if parsing failed
+                    println!("parsing token failed.\n");
+                    parsed_tokens.clear();
+                    parsed_tokens.shrink_to(0);
+                    return parsed_tokens;
+                }
+            },
+        }
+        i += 1; //continue to next character
+    }
 
     parsed_tokens
 }
 
 pub fn parse_command(command: &String) -> Vec<Token> {
     //TODO: remove newlines / whitespaces, so everything is only separated by spaces
-    let mut parsed_tokens: Vec<Token> = Vec::new();
-    let command_parts: Vec<&str> = command.split_whitespace().collect();
-
-    for word in command_parts {
-        match parse_next_command_part(word) {
-            Some(token_value) => parsed_tokens.push(token_value),
-            None => {
-                println!("parsing token failed at word: {word:?}");
-                parsed_tokens.clear();
-                parsed_tokens.shrink_to(0);
-                return parsed_tokens; //returns empty vector
-            }
-        }
-    }
-    parse_entire_command(command);
+    let parsed_tokens = parse_entire_command(command);
 
     parsed_tokens
 }
@@ -218,6 +365,7 @@ pub fn read_command_loop() {
             continue;
         }
         if validate_syntax(&parsed_tokens) {
+            println!("syntax is valid.");
             //if syntax validation succeeded
         }
 

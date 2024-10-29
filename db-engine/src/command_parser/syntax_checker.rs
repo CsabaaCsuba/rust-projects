@@ -54,7 +54,7 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
     }
 
     match &token_vector[2] {
-        Token::NAME_UNIT(string) => println!("Name unit is {string}"),
+        Token::NAME_UNIT(string) | Token::NO_BACKTICK_NAME_UNIT(string) => println!("Name unit is {string}"),
         _ => return error_create("incorrect name for the database"),
     }
     let mut i = 3;
@@ -371,9 +371,7 @@ pub fn validate_insert(token_vector: &Vec<Token>) -> bool {
     }
 
     let mut i = 4;
-    while i < tokens_len {
-        
-    }
+    while i < tokens_len {}
     //checking the data types
     // let mut columns_included = 0;
     // let mut data_included = 0;
