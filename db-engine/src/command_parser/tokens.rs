@@ -11,7 +11,7 @@ pub enum TypeNotation {
 #[derive(Debug, PartialEq, Clone)]
 pub enum StringWrapper {
     Data(String),
-    Filler
+    Filler,
 }
 
 #[allow(non_camel_case_types)]

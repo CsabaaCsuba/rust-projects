@@ -5,3 +5,4 @@
 5. write the update statement validator
 6. write the select statement validator
 7. write the alter statement validator
+8. write a delete validator [will start soon]

@@ -1,5 +1,5 @@
-pub mod tokens;
 pub mod tokenizer;
+pub mod tokens;
 use tokenizer::*;
 use tokens::Token;
 pub mod syntax_checker; //public makes it available to the other parts of the program
@@ -10,8 +10,6 @@ use std::io;
 // static POSSIBLE_TOKENS: [&str; 8] = [
 //     "CREATE", "SELECT", "INSERT", "UPDATE", "DELETE", "ALTER", "TABLE", "DATABASE",
 // ];
-
-
 
 pub fn read_command_loop() {
     let mut command = String::with_capacity(128);

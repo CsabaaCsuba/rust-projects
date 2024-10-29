@@ -1,4 +1,4 @@
-use super::tokens::{Token, TypeNotation, StringWrapper};
+use super::tokens::{StringWrapper, Token, TypeNotation};
 
 fn parse_next_command_part(command_part: &str) -> Option<Token> {
     let token: Token;
@@ -138,7 +138,6 @@ fn str_to_num(command_string: &[u8], idx: usize, number_ptr: &mut number_type) -
             if is_double {
                 currently_parsed += (command_string[i] - 48) as f64 / (f64::powf(10.0, j));
                 j += 1.0;
-
             } else {
                 currently_parsed = currently_parsed * 10.0;
                 currently_parsed += (command_string[i] - 48) as f64;
@@ -150,7 +149,7 @@ fn str_to_num(command_string: &[u8], idx: usize, number_ptr: &mut number_type) -
             || command_string[i] == b'\r'
             || command_string[i] == b' '
             || command_string[i] == b';'
-            || command_string[i] == b',' 
+            || command_string[i] == b','
             || command_string[i] == b'+'
             || command_string[i] == b'-'
             || command_string[i] == b'/'
@@ -163,26 +162,28 @@ fn str_to_num(command_string: &[u8], idx: usize, number_ptr: &mut number_type) -
             || command_string[i] == b'&'
             || command_string[i] == b'|'
             || command_string[i] == b'^' //bitwise xor
-            || command_string[i] == b'~' //bitwise not
+            || command_string[i] == b'~'
+        //bitwise not
         {
             parsed_num = if is_double {
                 number_type::DOUBLE(currently_parsed)
-                
             } else {
                 number_type::INT(currently_parsed as i32)
             };
             *number_ptr = parsed_num;
-            return i-1;
-        }
-        else {
-            println!("illegal character encountered when parsing number: {}", command_string[i]);
+            return i - 1;
+        } else {
+            println!(
+                "illegal character encountered when parsing number: {}",
+                command_string[i]
+            );
             return 0;
         }
 
         i += 1;
     }
 
-    i-1
+    i - 1
 }
 
 fn parse_until_byte(command_string: &[u8], idx: usize, end_byte: u8) -> String {
@@ -190,7 +191,8 @@ fn parse_until_byte(command_string: &[u8], idx: usize, end_byte: u8) -> String {
     println!("byte-based string parsing started");
     let mut i = idx;
     let mut return_string = String::new();
-    if end_byte == b' ' { //put here so it doesn't have to get checked on each iteration
+    if end_byte == b' ' {
+        //put here so it doesn't have to get checked on each iteration
         while i < string_len && command_string[i] != end_byte {
             println!("current byte: {}", command_string[i]);
             //TODO: check for whitespaces / other terminators like ")" or "," or ";" when the end_byte is a space
@@ -198,18 +200,17 @@ fn parse_until_byte(command_string: &[u8], idx: usize, end_byte: u8) -> String {
                 b')' | b',' | b';' => {
                     return return_string;
                 }
-                _ => ()
+                _ => (),
             }
-            
+
             let current_char = unsafe { char::from_u32_unchecked(command_string[i] as u32) };
             println!("current char: {}", current_char);
             return_string.push(current_char);
             i += 1;
         }
-    }
-    else {
+    } else {
         while i < string_len && command_string[i] != end_byte {
-            println!("current byte: {}", command_string[i] );
+            println!("current byte: {}", command_string[i]);
             //it can't be unsafe since the IO reader does a UTF8 validity check
             let current_char = unsafe { char::from_u32_unchecked(command_string[i] as u32) };
             println!("current char: {}", current_char);
@@ -217,7 +218,6 @@ fn parse_until_byte(command_string: &[u8], idx: usize, end_byte: u8) -> String {
             i += 1;
         }
     }
-    
 
     return_string
 }
@@ -226,7 +226,7 @@ fn parse_until_byte(command_string: &[u8], idx: usize, end_byte: u8) -> String {
 fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut Token) -> usize {
     let i: usize = idx; //so it starts from idx
     if command_string[i] == b'"' {
-        let return_string = parse_until_byte(command_string, i+1, b'"');
+        let return_string = parse_until_byte(command_string, i + 1, b'"');
         let string_len = return_string.len();
         if string_len == 0 {
             println!("string with 0 characters was read");
@@ -236,7 +236,7 @@ fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut
 
         return idx + string_len + 1; //for the ending character
     } else if command_string[i] == b'`' {
-        let return_string = parse_until_byte(command_string, i+1, b'`');
+        let return_string = parse_until_byte(command_string, i + 1, b'`');
         let string_len = return_string.len();
         if string_len == 0 {
             println!("no-backtick name unit with 0 characters was read");
@@ -278,15 +278,13 @@ fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut
         match command_token {
             Some(found_token) => {
                 *token_ptr = found_token;
-                return idx + string_len -1; //minus 1 so it doesn't go to the next character because of the length addition. In the other cases this is not a problem
+                return idx + string_len - 1; //minus 1 so it doesn't go to the next character because of the length addition. In the other cases this is not a problem
             }
             None => {
                 println!("keyword not found...");
                 return 0;
             }
         }
-        
-        
     }
 }
 
@@ -305,24 +303,25 @@ fn parse_entire_command(command: &String) -> Vec<Token> {
             b',' => parsed_tokens.push(Token::COMMA),
             b';' => parsed_tokens.push(Token::SEMICOLON),
             b'*' => parsed_tokens.push(Token::ASTERISK),
-            b'\n' |b'\r' |b' ' => (), //if it's a formatter, just continue
-
+            b'\n' | b'\r' | b' ' => (), //if it's a formatter, just continue
 
             //in case of an other char, if parse was succesfull
             _ => {
                 let new_idx = parse_next_multi_char_part(command_bytes, i, &mut token_space);
                 println!("new idx: {new_idx}, i: {i}");
-                if i < new_idx { //if idx changed, the parsing was succesfull
+                if i < new_idx {
+                    //if idx changed, the parsing was succesfull
                     println!("token found: {:?}", &token_space);
                     parsed_tokens.push(token_space.clone());
                     i = new_idx;
-                } else { //if parsing failed
+                } else {
+                    //if parsing failed
                     println!("parsing token failed.\n");
                     parsed_tokens.clear();
                     parsed_tokens.shrink_to(0);
                     return parsed_tokens;
                 }
-            },
+            }
         }
         i += 1; //continue to next character
     }
