@@ -230,7 +230,7 @@ fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut
             println!("no-backtick name unit with 0 characters was read");
             return 0;
         }
-        *token_ptr = Token::NO_BACKTICK_NAME_UNIT(return_string);
+        *token_ptr = Token::NAME_UNIT(return_string);
 
         return idx + string_len + 1;
     } else if command_string[i] > 48 && command_string[i] < 57 {
