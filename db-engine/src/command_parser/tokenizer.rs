@@ -73,6 +73,7 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
 
         ";" => token = Token::SEMICOLON,
 
+        "IS" => token = Token::IS,
         "LIKE" => token = Token::LIKE,
 
         "*" => token = Token::ASTERISK,

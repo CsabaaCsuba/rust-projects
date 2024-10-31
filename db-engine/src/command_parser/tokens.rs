@@ -16,6 +16,13 @@ pub enum StringWrapper {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Clone)]
+pub enum ValidSequenceFound {
+    True(usize),
+    False
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     CREATE,
     SELECT,
@@ -54,6 +61,7 @@ pub enum Token {
     SMALLER_THAN_OPERATOR,
     BIGGER_THAN_OPERATOR,
 
+    IS,
     LIKE,
 
     ASTERISK,

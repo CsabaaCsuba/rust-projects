@@ -1,6 +1,8 @@
 use crate::command_parser::{tokens::StringWrapper, Token};
 use std::{env::current_exe, mem::discriminant};
 
+use super::tokens::{ValidSequenceFound};
+
 fn error_create(msg: &str) -> bool {
     println!("create statement: validation error: {msg}");
     return false;
@@ -337,15 +339,28 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
     true
 }
 
-// fn check_where_clause(token_vector: &Vec<Token>, start_index: usize) -> Option<bool> {
-//     //Some(true) -> where is present, Some(false) => where is present but incorrect, None => there is no where statement
+fn check_and_or_relation(token_vector: &Vec<Token>, start_index: usize) -> ValidSequenceFound {
+    //checks for a condition, and it's and / or clause. Obviously returns false if it fails
+    //if it encounters an opening parenthesis, recursion will happen
+    
 
-//     //where can only have < or > between numbers, and LIKE is only for strings
-//     let mut i = start_index;
-//     if check_next_token(token_vector.get(), check_against)
+    todo!()
+}
+
+fn check_where_clause(token_vector: &Vec<Token>, start_index: usize) -> ValidSequenceFound {
+    //where can only have < or > between numbers, and LIKE is only for strings
+    if !check_next_token(token_vector.get(start_index), Token::WHERE){
+        return ValidSequenceFound::False;
+    }
+    let mut i = start_index;
+    while i < token_vector.len() {
 
 
-// }
+        i += 1;
+    }
+
+    ValidSequenceFound::True(i)
+}
 
 fn error_select(msg: &str) -> bool {
     println!("insert syntax error: {msg}");
@@ -403,10 +418,14 @@ pub fn validate_select(token_vector: &Vec<Token>) -> bool {
     5. limit
      */
 
-    // let where_result: Option<bool> = check_where_clause(token_vector, i);
+    let where_result: ValidSequenceFound = check_where_clause(token_vector, i);
+    match where_result {
+        ValidSequenceFound::True(val) => i = val,
+        ValidSequenceFound::False => return error_select("Error in WHERE clause"),
+    }
     let mut found_statements = [false, false, false, false];
     while i < tokens_len {
-        
+
     }
 
 
@@ -593,25 +612,28 @@ pub fn validate_use(token_vector: &Vec<Token>) -> bool {
     true
 }
 
-fn error_drop(condition: i32) -> bool {
-    println!("error dropping database at condition {condition}");
+fn error_drop(msg: &str) -> bool {
+    println!("error in \"DROP\" command: {msg}");
     false
 }
 
 pub fn validate_drop(token_vector: &Vec<Token>) -> bool {
-    if token_vector.len() < 4 {
+    if token_vector.len() != 4 {
         //3 tokens + ";"
-        return error_drop(1);
+        return error_drop("command is too short or long to be valid");
     }
     if token_vector[0] != Token::DROP {
-        return error_drop(2);
+        return error_drop("DROP statement doesn't start with DROP");
     }
     if token_vector[1] != Token::TABLE && token_vector[1] != Token::DATABASE {
-        return error_drop(3);
+        return error_drop("DROP isn't followed by type (DATABASE / TABLE)");
     }
     match token_vector[2] {
         Token::NO_BACKTICK_NAME_UNIT(_) | Token::NAME_UNIT(_) => (), //if it's a table / database name with "`" characters or without
-        _ => return error_drop(4),
+        _ => return error_drop("Drop type isn't followed by a name"),
+    }
+    if !check_next_token(token_vector.get(3), Token::SEMICOLON){
+        return  error_drop("command isn't closed");
     }
     println!("valid drop statement");
 
