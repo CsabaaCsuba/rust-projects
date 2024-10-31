@@ -337,10 +337,83 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
     true
 }
 
+// fn check_where_clause(token_vector: &Vec<Token>, start_index: usize) -> Option<bool> {
+//     //Some(true) -> where is present, Some(false) => where is present but incorrect, None => there is no where statement
+
+//     //where can only have < or > between numbers, and LIKE is only for strings
+//     let mut i = start_index;
+//     if check_next_token(token_vector.get(), check_against)
+
+
+// }
+
+fn error_select(msg: &str) -> bool {
+    println!("insert syntax error: {msg}");
+    false
+}
+
 pub fn validate_select(token_vector: &Vec<Token>) -> bool {
     // SELECT -> COLUMNS | * -> FROM `table_name` -> WHERE (optional) -> AND / OR (if there's an other criteria)
     // -> GROUP BY (optional) -> HAVING (optional) -> ORDER BY (optional) -> LIMIT (optional);
-    false
+    let tokens_len = token_vector.len();
+    if tokens_len < 5{
+        return error_select("there aren't even enough tokens");
+    }
+    if !check_next_token(token_vector.get(0), Token::SELECT){
+        return error_select("how is it even possible to not start a select statement with select...");
+    }
+    //after select, the columns must come, and the columns end when there is no "," and there is a FROM
+    let mut i = 1;
+    let mut last_token: Token = Token::SELECT; //this is the first token anyway
+    while i < tokens_len {
+        let current_token = &token_vector[i];
+        if check_next_token(Some(current_token), Token::NO_BACKTICK_NAME_UNIT(StringWrapper::Filler)){
+            i += 1;
+            match token_vector.get(i){
+                Some(Token::COMMA) => {i += 1; last_token = current_token.clone()},
+                Some(Token::FROM) => {
+                    i += 1;
+                    break;
+                },
+                None => return error_select(format!("nothing found after column {current_token:?} to select...").as_str()),
+                _ => return error_select(format!("Reserved keyword found after {current_token:?}").as_str()),
+            }
+        }
+        else {
+            return error_select(format!("wrong token of text after {last_token:?}").as_str());
+        }
+    }
+    if !check_next_token(token_vector.get(i), Token::FROM){
+        return error_select("\"FROM\" found after column definitions");
+    }
+    match token_vector.get(i+1){
+        Some(Token::NO_BACKTICK_NAME_UNIT(_)) => {},
+        Some(Token::NAME_UNIT(_)) => {},
+        Some(token) => return error_create(format!("token {token:?} is wrong after \"FROM\"").as_str()),
+        None => return error_create("Nothing found after \"FROM\""),
+    }
+    i += 2;
+
+    /*
+    order:
+    1. where
+    2. group by
+    3. having
+    4. order by
+    5. limit
+     */
+
+    // let where_result: Option<bool> = check_where_clause(token_vector, i);
+    let mut found_statements = [false, false, false, false];
+    while i < tokens_len {
+        
+    }
+
+
+
+
+    
+    true
 }
 
 fn error_insert(error_msg: &str) -> bool {

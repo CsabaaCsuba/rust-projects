@@ -54,6 +54,8 @@ pub enum Token {
     SMALLER_THAN_OPERATOR,
     BIGGER_THAN_OPERATOR,
 
+    LIKE,
+
     ASTERISK,
 
     FROM,
@@ -66,7 +68,12 @@ pub enum Token {
     HAVING,
     LIMIT,
 
+    ASC,
+    DESC,
+
     VALUES,
+
+    UNION,
 
     TYPE_KEYWORD(TypeNotation),
 

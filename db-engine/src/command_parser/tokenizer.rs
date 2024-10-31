@@ -73,6 +73,8 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
 
         ";" => token = Token::SEMICOLON,
 
+        "LIKE" => token = Token::LIKE,
+
         "*" => token = Token::ASTERISK,
 
         "FROM" => token = Token::FROM,
@@ -85,7 +87,12 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         "HAVING" => token = Token::HAVING,
         "LIMIT" => token = Token::LIMIT,
 
+        "ASC" => token = Token::ASC,
+        "DESC" => token = Token::DESC,
+
         "VALUES" => token = Token::VALUES,
+
+        "UNION" => token = Token::UNION,
 
         "DOUBLE" => token = Token::TYPE_KEYWORD(TypeNotation::DOUBLE),
         "INT" => token = Token::TYPE_KEYWORD(TypeNotation::INT),
