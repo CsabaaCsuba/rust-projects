@@ -96,13 +96,15 @@ mod tests {
         assert_eq!(false, syntax_checker::validate_syntax(&insert4_tokens));
     }
 
+    #[test]
     fn select_from(){
         // SELECT -> COLUMNS | * -> FROM `table_name` -> WHERE (optional) -> AND / OR (if there's an other criteria)
         // -> GROUP BY (optional) -> HAVING (optional) -> ORDER BY (optional) -> LIMIT (optional);
         
-        let select1 = "SELECT column1, intcolumn FROM `my_table` WHERE intcolumn<3 ORDER BY intcolumn LIMIT 3;".to_string();
+        //ORDER BY intcolumn LIMIT 3;
+        let select1 = "SELECT column1, intcolumn FROM `my_table` WHERE intcolumn<3;".to_string();
         let select1_tokens = tokenizer::parse_command(&select1);
-        assert_eq!(false, syntax_checker::validate_syntax(&select1_tokens));
+        assert_eq!(true, syntax_checker::validate_syntax(&select1_tokens));
     }
 }
 

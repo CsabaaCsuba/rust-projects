@@ -16,7 +16,7 @@ pub enum StringWrapper {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, PartialEq, Clone)]
-pub enum ValidSequenceFound {
+pub enum IsSequenceValid {
     True(usize),
     False
 }
@@ -57,7 +57,7 @@ pub enum Token {
     CLOSING_PARENTHESIS,
     SEMICOLON,
 
-    EQUAL_EXPRESSION,
+    EQUAL_SIGN,
     SMALLER_THAN_OPERATOR,
     BIGGER_THAN_OPERATOR,
 

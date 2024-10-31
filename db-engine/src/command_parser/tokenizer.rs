@@ -65,7 +65,7 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
 
         "<" => token = Token::SMALLER_THAN_OPERATOR,
         ">" => token = Token::BIGGER_THAN_OPERATOR,
-        "=" => token = Token::EQUAL_EXPRESSION,
+        "=" => token = Token::EQUAL_SIGN,
 
         "(" => token = Token::OPEN_PARENTHESIS,
         ")" => token = Token::CLOSING_PARENTHESIS,
@@ -305,7 +305,7 @@ fn parse_entire_command(command: &String) -> Vec<Token> {
         match command_bytes[i] {
             b'<' => parsed_tokens.push(Token::SMALLER_THAN_OPERATOR),
             b'>' => parsed_tokens.push(Token::BIGGER_THAN_OPERATOR),
-            b'=' => parsed_tokens.push(Token::EQUAL_EXPRESSION),
+            b'=' => parsed_tokens.push(Token::EQUAL_SIGN),
             b'(' => parsed_tokens.push(Token::OPEN_PARENTHESIS),
             b')' => parsed_tokens.push(Token::CLOSING_PARENTHESIS),
             b',' => parsed_tokens.push(Token::COMMA),

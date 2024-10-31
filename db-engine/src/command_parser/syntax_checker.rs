@@ -1,7 +1,7 @@
 use crate::command_parser::{tokens::StringWrapper, Token};
 use std::{env::current_exe, mem::discriminant};
 
-use super::tokens::{ValidSequenceFound};
+use super::tokens::{IsSequenceValid};
 
 fn error_create(msg: &str) -> bool {
     println!("create statement: validation error: {msg}");
@@ -339,18 +339,67 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
     true
 }
 
-fn check_and_or_relation(token_vector: &Vec<Token>, start_index: usize) -> ValidSequenceFound {
-    //checks for a condition, and it's and / or clause. Obviously returns false if it fails
+fn check_and_or_relation(token_vector: &Vec<Token>, start_index: usize) -> IsSequenceValid {
+    //checks for a condition, and whether if it's an and / or clause. Obviously returns false if it fails
     //if it encounters an opening parenthesis, recursion will happen
+    let mut i = start_index;
+
+    let tokens_len = token_vector.len();
+    while i < tokens_len { //each iteration checks for a whole expression: num < 3 | string = "stringval" | string2 LIKE "%val%" 
+        match token_vector.get(i){
+            Some(Token::OPEN_PARENTHESIS) => {
+                i += 1;
+                match check_and_or_relation(token_vector, i) {
+                    IsSequenceValid::True(val) => i = val, //increases i to val
+                    IsSequenceValid::False => {println!("failed to parse where relation"); return IsSequenceValid::False},
+                }
+            }
+            Some(Token::NO_BACKTICK_NAME_UNIT(_)) => {
+                match token_vector.get(i+2) { //jump ahead and check if it's a number or text or bool
+                    Some(Token::INT_VALUE(_)) | Some(Token::DOUBLE_VALUE(_)) => {
+                        match token_vector.get(i+1) {
+                            Some(Token::EQUAL_SIGN) | Some(Token::SMALLER_THAN_OPERATOR) | Some(Token::BIGGER_THAN_OPERATOR) => {println!("number comparison valid")}
+                            _ => {println!("number comparison isn't valid, use <, >, or ="); return IsSequenceValid::False}
+                        }
+                    }
+                    Some(Token::BOOL_VALUE(_)) => {
+                        if check_next_token(token_vector.get(i+1), Token::EQUAL_SIGN) {
+                            println!("boolean comparison legit")
+                        }
+                        else {
+                            println!("boolean comparison didn't have an equal sign");
+                            return IsSequenceValid::False;
+                        }
+                    }
+                    Some(Token::STRING_VALUE(_)) => {
+                        match token_vector.get(i+1) {
+                            Some(Token::EQUAL_SIGN) | Some(Token::LIKE)=> {println!("string comparison valid")}
+                            _ => {println!("string comparison isn't valid, use either = or \"LIKE\""); return IsSequenceValid::False}
+                        }
+                    }
+                    None => {println!("where clause ended before it should have..."); return IsSequenceValid::False}
+                    _ => {
+                        println!("the other side of the comparison should have a value as well.");
+                        return IsSequenceValid::False;
+                    }
+                }
+
+                i += 3; //it can be incremented by 3, since the next 2 tokens were already checked
+            }
+
+            _ => {println!("Invalid token in where clause"); return IsSequenceValid::False}
+        }
+    }
+
     
 
-    todo!()
+    IsSequenceValid::True(i)
 }
 
-fn check_where_clause(token_vector: &Vec<Token>, start_index: usize) -> ValidSequenceFound {
+fn check_where_clause(token_vector: &Vec<Token>, start_index: usize) -> IsSequenceValid {
     //where can only have < or > between numbers, and LIKE is only for strings
     if !check_next_token(token_vector.get(start_index), Token::WHERE){
-        return ValidSequenceFound::False;
+        return IsSequenceValid::False;
     }
     let mut i = start_index;
     while i < token_vector.len() {
@@ -359,7 +408,7 @@ fn check_where_clause(token_vector: &Vec<Token>, start_index: usize) -> ValidSeq
         i += 1;
     }
 
-    ValidSequenceFound::True(i)
+    IsSequenceValid::True(i)
 }
 
 fn error_select(msg: &str) -> bool {
@@ -387,7 +436,7 @@ pub fn validate_select(token_vector: &Vec<Token>) -> bool {
             match token_vector.get(i){
                 Some(Token::COMMA) => {i += 1; last_token = current_token.clone()},
                 Some(Token::FROM) => {
-                    i += 1;
+                    // i += 1; //this increment is not needed
                     break;
                 },
                 None => return error_select(format!("nothing found after column {current_token:?} to select...").as_str()),
@@ -398,13 +447,11 @@ pub fn validate_select(token_vector: &Vec<Token>) -> bool {
             return error_select(format!("wrong token of text after {last_token:?}").as_str());
         }
     }
-    if !check_next_token(token_vector.get(i), Token::FROM){
-        return error_select("\"FROM\" found after column definitions");
-    }
+
     match token_vector.get(i+1){
         Some(Token::NO_BACKTICK_NAME_UNIT(_)) => {},
         Some(Token::NAME_UNIT(_)) => {},
-        Some(token) => return error_create(format!("token {token:?} is wrong after \"FROM\"").as_str()),
+        Some(token) => return error_create(format!("token {token:?} is wrong after {:?}", token_vector[i]).as_str()),
         None => return error_create("Nothing found after \"FROM\""),
     }
     i += 2;
@@ -418,10 +465,10 @@ pub fn validate_select(token_vector: &Vec<Token>) -> bool {
     5. limit
      */
 
-    let where_result: ValidSequenceFound = check_where_clause(token_vector, i);
+    let where_result: IsSequenceValid = check_where_clause(token_vector, i);
     match where_result {
-        ValidSequenceFound::True(val) => i = val,
-        ValidSequenceFound::False => return error_select("Error in WHERE clause"),
+        IsSequenceValid::True(val) => i = val,
+        IsSequenceValid::False => return error_select("Error in WHERE clause"),
     }
     let mut found_statements = [false, false, false, false];
     while i < tokens_len {
