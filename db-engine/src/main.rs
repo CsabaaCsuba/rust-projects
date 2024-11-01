@@ -105,9 +105,13 @@ mod tests {
         // -> GROUP BY (optional) -> HAVING (optional) -> ORDER BY (optional) -> LIMIT (optional);
 
         //ORDER BY intcolumn LIMIT 3;
-        let select1 = "SELECT column1, intcolumn FROM `my_table` WHERE intcolumn<3;".to_string();
-        let select1_tokens = tokenizer::parse_command(&select1);
-        assert_eq!(true, syntax_checker::validate_syntax(&select1_tokens));
+        let select = "SELECT column1, intcolumn FROM `my_table` WHERE intcolumn<3;".to_string();
+        let select_tokens = tokenizer::parse_command(&select);
+        assert_eq!(true, syntax_checker::validate_syntax(&select_tokens));
+
+        let select = "SELECT column1, intcolumn FROM `my_table` WHERE intcolumn<3 AND (column1 LIKE \"halo\" OR column1 LIKE \"SZIA\");".to_string();
+        let select_tokens = tokenizer::parse_command(&select);
+        assert_eq!(true, syntax_checker::validate_syntax(&select_tokens));
     }
 }
 

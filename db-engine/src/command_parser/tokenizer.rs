@@ -176,8 +176,7 @@ fn str_to_num(command_string: &[u8], idx: usize, number_ptr: &mut number_type) -
             || command_string[i] == b'&'
             || command_string[i] == b'|'
             || command_string[i] == b'^' //bitwise xor
-            || command_string[i] == b'~'
-        //bitwise not
+            || command_string[i] == b'~' //bitwise not
         {
             parsed_num = if is_double {
                 number_type::DOUBLE(currently_parsed)
@@ -211,7 +210,7 @@ fn parse_until_byte(command_string: &[u8], idx: usize, end_byte: u8) -> String {
             println!("current byte: {}", command_string[i]);
             //TODO: check for whitespaces / other terminators like ")" or "," or ";" when the end_byte is a space
             match command_string[i] {
-                b')' | b',' | b';' => {
+                b')' | b',' | b';' | b'<' | b'>' | b'=' => {
                     return return_string;
                 }
                 _ => (),
@@ -262,7 +261,7 @@ fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut
     } else if command_string[i] > 48 && command_string[i] < 57 {
         let mut parsed_num: number_type = number_type::NaN;
         let new_idx = str_to_num(command_string, i, &mut parsed_num);
-        if i < new_idx {
+        if i <= new_idx { //it can be equal tho, if the number is just one character
             //if parsing was succesfull
             match parsed_num {
                 number_type::INT(val) => {
@@ -278,7 +277,7 @@ fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut
             }
             return new_idx;
         } else {
-            println!("parsing number failed...");
+            println!("parsing number failed... Last char: {:?}", command_string[i] as char);
             return 0;
         }
     } else {
@@ -308,26 +307,28 @@ fn parse_entire_command(command: &String) -> Vec<Token> {
     let command_bytes = command.as_bytes();
     let mut token_space: Token = Token::NO; //some filler has to be there
     while i < command_bytes.len() {
+        println!("current byte: {:?}", command_bytes[i] as char);
         match command_bytes[i] {
-            b'<' => parsed_tokens.push(Token::SMALLER_THAN_OPERATOR),
-            b'>' => parsed_tokens.push(Token::BIGGER_THAN_OPERATOR),
-            b'=' => parsed_tokens.push(Token::EQUAL_SIGN),
-            b'(' => parsed_tokens.push(Token::OPEN_PARENTHESIS),
-            b')' => parsed_tokens.push(Token::CLOSING_PARENTHESIS),
-            b',' => parsed_tokens.push(Token::COMMA),
-            b';' => parsed_tokens.push(Token::SEMICOLON),
-            b'*' => parsed_tokens.push(Token::ASTERISK),
-            b'\n' | b'\r' | b' ' => (), //if it's a formatter, just continue
+            b'<' => {parsed_tokens.push(Token::SMALLER_THAN_OPERATOR); println!("one character parsed");i+=1},
+            b'>' => {parsed_tokens.push(Token::BIGGER_THAN_OPERATOR); println!("one character parsed");i+=1},
+            b'=' => {parsed_tokens.push(Token::EQUAL_SIGN); println!("one character parsed");i+=1},
+            b'(' => {parsed_tokens.push(Token::OPEN_PARENTHESIS); println!("one character parsed");i+=1},
+            b')' => {parsed_tokens.push(Token::CLOSING_PARENTHESIS); println!("one character parsed");i+=1},
+            b',' => {parsed_tokens.push(Token::COMMA); println!("one character parsed");i+=1},
+            b';' => {parsed_tokens.push(Token::SEMICOLON); println!("one character parsed");i+=1},
+            b'*' => {parsed_tokens.push(Token::ASTERISK); println!("one character parsed");i+=1},
+            b'\n' | b'\r' | b' ' => i+=1, //if it's a formatter, just continue
 
             //in case of an other char, if parse was succesfull
             _ => {
                 let new_idx = parse_next_multi_char_part(command_bytes, i, &mut token_space);
                 println!("new idx: {new_idx}, i: {i}");
-                if i < new_idx {
+                if i <= new_idx { //in case of numbers which are just one character long
                     //if idx changed, the parsing was succesfull
                     println!("token found: {:?}", &token_space);
                     parsed_tokens.push(token_space.clone());
                     i = new_idx;
+                    i += 1;
                 } else {
                     //if parsing failed
                     println!("parsing token failed.\n");
@@ -337,7 +338,7 @@ fn parse_entire_command(command: &String) -> Vec<Token> {
                 }
             }
         }
-        i += 1; //continue to next character
+        // i += 1; //continue to next character
     }
 
     parsed_tokens
