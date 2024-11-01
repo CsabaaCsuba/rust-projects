@@ -82,7 +82,8 @@ mod tests {
         assert_eq!(expected_result, insert1_tokens);
         // assert_eq!(true, syntax_checker::validate_syntax(&insert1_tokens));
 
-        let insert2 = "INSERT INTO `bruh` VALUES (\"Marcos\", 18, false), (\"Alexos\", 20, true);".to_string();
+        let insert2 = "INSERT INTO `bruh` VALUES (\"Marcos\", 18, false), (\"Alexos\", 20, true);"
+            .to_string();
         let insert2_tokens = tokenizer::parse_command(&insert2);
         assert_eq!(true, syntax_checker::validate_syntax(&insert2_tokens));
 
@@ -91,16 +92,18 @@ mod tests {
         let insert3_tokens = tokenizer::parse_command(&insert3);
         assert_eq!(false, syntax_checker::validate_syntax(&insert3_tokens));
 
-        let insert4 = "INSERT INTO `bruh` VALUES (\"Marcos\", 18, false), (\"Alexos\", 20, true), ;".to_string();
+        let insert4 =
+            "INSERT INTO `bruh` VALUES (\"Marcos\", 18, false), (\"Alexos\", 20, true), ;"
+                .to_string();
         let insert4_tokens = tokenizer::parse_command(&insert4);
         assert_eq!(false, syntax_checker::validate_syntax(&insert4_tokens));
     }
 
     #[test]
-    fn select_from(){
+    fn select_from() {
         // SELECT -> COLUMNS | * -> FROM `table_name` -> WHERE (optional) -> AND / OR (if there's an other criteria)
         // -> GROUP BY (optional) -> HAVING (optional) -> ORDER BY (optional) -> LIMIT (optional);
-        
+
         //ORDER BY intcolumn LIMIT 3;
         let select1 = "SELECT column1, intcolumn FROM `my_table` WHERE intcolumn<3;".to_string();
         let select1_tokens = tokenizer::parse_command(&select1);

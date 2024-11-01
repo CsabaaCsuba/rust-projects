@@ -1,7 +1,7 @@
 use crate::command_parser::{tokens::StringWrapper, Token};
 use std::{env::current_exe, mem::discriminant};
 
-use super::tokens::{IsSequenceValid};
+use super::tokens::IsSequenceValid;
 
 fn error_create(msg: &str) -> bool {
     println!("create statement: validation error: {msg}");
@@ -339,45 +339,62 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
     true
 }
 
-fn check_and_or_relation(token_vector: &Vec<Token>, start_index: usize) -> IsSequenceValid {
+fn check_expressions(token_vector: &Vec<Token>, start_index: usize) -> IsSequenceValid {
     //checks for a condition, and whether if it's an and / or clause. Obviously returns false if it fails
     //if it encounters an opening parenthesis, recursion will happen
     let mut i = start_index;
 
     let tokens_len = token_vector.len();
-    while i < tokens_len { //each iteration checks for a whole expression: num < 3 | string = "stringval" | string2 LIKE "%val%" 
-        match token_vector.get(i){
+    while i < tokens_len {
+        //each iteration checks for a whole expression: num < 3 | string = "stringval" | string2 LIKE "%val%"
+        match token_vector.get(i) {
             Some(Token::OPEN_PARENTHESIS) => {
                 i += 1;
-                match check_and_or_relation(token_vector, i) {
+                match check_expressions(token_vector, i) {
                     IsSequenceValid::True(val) => i = val, //increases i to val
-                    IsSequenceValid::False => {println!("failed to parse where relation"); return IsSequenceValid::False},
+                    IsSequenceValid::False => {
+                        println!("failed to parse where relation");
+                        return IsSequenceValid::False;
+                    }
                 }
             }
             Some(Token::NO_BACKTICK_NAME_UNIT(_)) => {
-                match token_vector.get(i+2) { //jump ahead and check if it's a number or text or bool
+                match token_vector.get(i + 2) {
+                    //jump ahead and check if it's a number or text or bool
                     Some(Token::INT_VALUE(_)) | Some(Token::DOUBLE_VALUE(_)) => {
-                        match token_vector.get(i+1) {
-                            Some(Token::EQUAL_SIGN) | Some(Token::SMALLER_THAN_OPERATOR) | Some(Token::BIGGER_THAN_OPERATOR) => {println!("number comparison valid")}
-                            _ => {println!("number comparison isn't valid, use <, >, or ="); return IsSequenceValid::False}
+                        match token_vector.get(i + 1) {
+                            Some(Token::EQUAL_SIGN)
+                            | Some(Token::SMALLER_THAN_OPERATOR)
+                            | Some(Token::BIGGER_THAN_OPERATOR) => {
+                                println!("number comparison valid")
+                            }
+                            _ => {
+                                println!("number comparison isn't valid, use <, >, or =");
+                                return IsSequenceValid::False;
+                            }
                         }
                     }
                     Some(Token::BOOL_VALUE(_)) => {
-                        if check_next_token(token_vector.get(i+1), Token::EQUAL_SIGN) {
+                        if check_next_token(token_vector.get(i + 1), Token::EQUAL_SIGN) {
                             println!("boolean comparison legit")
-                        }
-                        else {
+                        } else {
                             println!("boolean comparison didn't have an equal sign");
                             return IsSequenceValid::False;
                         }
                     }
-                    Some(Token::STRING_VALUE(_)) => {
-                        match token_vector.get(i+1) {
-                            Some(Token::EQUAL_SIGN) | Some(Token::LIKE)=> {println!("string comparison valid")}
-                            _ => {println!("string comparison isn't valid, use either = or \"LIKE\""); return IsSequenceValid::False}
+                    Some(Token::STRING_VALUE(_)) => match token_vector.get(i + 1) {
+                        Some(Token::EQUAL_SIGN) | Some(Token::LIKE) => {
+                            println!("string comparison valid")
                         }
+                        _ => {
+                            println!("string comparison isn't valid, use either = or \"LIKE\"");
+                            return IsSequenceValid::False;
+                        }
+                    },
+                    None => {
+                        println!("where clause ended before it should have...");
+                        return IsSequenceValid::False;
                     }
-                    None => {println!("where clause ended before it should have..."); return IsSequenceValid::False}
                     _ => {
                         println!("the other side of the comparison should have a value as well.");
                         return IsSequenceValid::False;
@@ -387,25 +404,55 @@ fn check_and_or_relation(token_vector: &Vec<Token>, start_index: usize) -> IsSeq
                 i += 3; //it can be incremented by 3, since the next 2 tokens were already checked
             }
 
-            _ => {println!("Invalid token in where clause"); return IsSequenceValid::False}
+            _ => {
+                println!("Invalid token in where clause");
+                return IsSequenceValid::False;
+            }
         }
     }
-
-    
 
     IsSequenceValid::True(i)
 }
 
-fn check_where_clause(token_vector: &Vec<Token>, start_index: usize) -> IsSequenceValid {
-    //where can only have < or > between numbers, and LIKE is only for strings
-    if !check_next_token(token_vector.get(start_index), Token::WHERE){
-        return IsSequenceValid::False;
-    }
+fn check_name_comma_seq(
+    token_vector: &Vec<Token>,
+    start_index: usize,
+    ending_token: Vec<Token>,
+) -> IsSequenceValid {
+    let tokens_len = token_vector.len();
     let mut i = start_index;
-    while i < token_vector.len() {
+    while i < tokens_len {
+        match token_vector.get(i) {
+            Some(
+                Token::NO_BACKTICK_NAME_UNIT(StringWrapper::Data(name))
+                | Token::NAME_UNIT(StringWrapper::Data(name)),
+            ) => {
+                println!("name {name} found");
+                i += 1;
+                let next_token = token_vector.get(i);
+                match next_token {
+                    Some(Token::COMMA) => {
+                        println!("comma found after name");
+                    }
+                    Some(other_token) => {
+                        for token in &ending_token {
+                            if other_token == token {
+                                println!("One of the valid ending matches found.");
+                                break; //then it will return anyway
+                            }
+                        }
+                    }
+                    _ => {
+                        println!("Token {next_token:?} cannot be here...")
+                    }
+                }
+                i += 1
+            }
 
 
-        i += 1;
+
+            _ => {println!("Wrong token encountered when checking a name1, name2, name3 END_TOKEN sequence")}
+        }
     }
 
     IsSequenceValid::True(i)
@@ -420,39 +467,59 @@ pub fn validate_select(token_vector: &Vec<Token>) -> bool {
     // SELECT -> COLUMNS | * -> FROM `table_name` -> WHERE (optional) -> AND / OR (if there's an other criteria)
     // -> GROUP BY (optional) -> HAVING (optional) -> ORDER BY (optional) -> LIMIT (optional);
     let tokens_len = token_vector.len();
-    if tokens_len < 5{
+    if tokens_len < 5 {
         return error_select("there aren't even enough tokens");
     }
-    if !check_next_token(token_vector.get(0), Token::SELECT){
-        return error_select("how is it even possible to not start a select statement with select...");
+    if !check_next_token(token_vector.get(0), Token::SELECT) {
+        return error_select(
+            "how is it even possible to not start a select statement with select...",
+        );
     }
     //after select, the columns must come, and the columns end when there is no "," and there is a FROM
     let mut i = 1;
     let mut last_token: Token = Token::SELECT; //this is the first token anyway
     while i < tokens_len {
         let current_token = &token_vector[i];
-        if check_next_token(Some(current_token), Token::NO_BACKTICK_NAME_UNIT(StringWrapper::Filler)){
+        if check_next_token(
+            Some(current_token),
+            Token::NO_BACKTICK_NAME_UNIT(StringWrapper::Filler),
+        ) {
             i += 1;
-            match token_vector.get(i){
-                Some(Token::COMMA) => {i += 1; last_token = current_token.clone()},
+            match token_vector.get(i) {
+                Some(Token::COMMA) => {
+                    i += 1;
+                    last_token = current_token.clone()
+                }
                 Some(Token::FROM) => {
                     // i += 1; //this increment is not needed
                     break;
-                },
-                None => return error_select(format!("nothing found after column {current_token:?} to select...").as_str()),
-                _ => return error_select(format!("Reserved keyword found after {current_token:?}").as_str()),
+                }
+                None => {
+                    return error_select(
+                        format!("nothing found after column {current_token:?} to select...")
+                            .as_str(),
+                    )
+                }
+                _ => {
+                    return error_select(
+                        format!("Reserved keyword found after {current_token:?}").as_str(),
+                    )
+                }
             }
-        }
-        else {
+        } else {
             return error_select(format!("wrong token of text after {last_token:?}").as_str());
         }
     }
 
-    match token_vector.get(i+1){
-        Some(Token::NO_BACKTICK_NAME_UNIT(_)) => {},
-        Some(Token::NAME_UNIT(_)) => {},
-        Some(token) => return error_create(format!("token {token:?} is wrong after {:?}", token_vector[i]).as_str()),
-        None => return error_create("Nothing found after \"FROM\""),
+    match token_vector.get(i + 1) {
+        Some(Token::NO_BACKTICK_NAME_UNIT(_)) => {}
+        Some(Token::NAME_UNIT(_)) => {}
+        Some(token) => {
+            return error_select(
+                format!("token {token:?} is wrong after {:?}", token_vector[i]).as_str(),
+            )
+        }
+        None => return error_select("Nothing found after \"FROM\""),
     }
     i += 2;
 
@@ -465,20 +532,62 @@ pub fn validate_select(token_vector: &Vec<Token>) -> bool {
     5. limit
      */
 
-    let where_result: IsSequenceValid = check_where_clause(token_vector, i);
-    match where_result {
-        IsSequenceValid::True(val) => i = val,
-        IsSequenceValid::False => return error_select("Error in WHERE clause"),
-    }
-    let mut found_statements = [false, false, false, false];
+    let mut found_statements = [false, false, false, false, false];
     while i < tokens_len {
-
+        match token_vector.get(i) {
+            Some(Token::WHERE) => {
+                for val in &found_statements[0..5] {
+                    if val == &true {
+                        return error_select(
+                            "WHERE keyword already exists or is encoutered on invalid place",
+                        );
+                    }
+                }
+                found_statements[0] = true;
+                i += 1;
+                match check_expressions(token_vector, i) {
+                    IsSequenceValid::False => {
+                        return error_select("where clause's expression checking failed")
+                    }
+                    IsSequenceValid::True(val) => i = val,
+                }
+            }
+            Some(Token::GROUP) => {
+                for val in &found_statements[1..5] {
+                    if val == &true {
+                        return error_select(
+                            "GROUP BY keyword already exists or is encoutered on an invalid place",
+                        );
+                    }
+                }
+                found_statements[1] = true;
+                i += 1;
+                if !check_next_token(token_vector.get(i), Token::BY) {
+                    return error_select("After GROUP keyword, BY is necessary");
+                }
+                i += 1;
+            }
+            Some(Token::HAVING) => {
+                for val in &found_statements[2..5] {
+                    if val == &true {
+                        return error_select(
+                            "HAVING keyword already exists or is encoutered on an invalid place",
+                        );
+                    }
+                }
+                found_statements[2] = true;
+                i += 1;
+                match check_expressions(token_vector, i) {
+                    //the same function can be used for HAVING as well
+                    IsSequenceValid::False => {
+                        return error_select("where clause's expression checking failed")
+                    }
+                    IsSequenceValid::True(val) => i = val,
+                }
+            }
+        }
     }
 
-
-
-
-    
     true
 }
 
@@ -538,7 +647,7 @@ pub fn validate_insert(token_vector: &Vec<Token>) -> bool {
                             } else {
                                 current_rows_values += 1;
                                 if current_rows_values > values_count {
-                                    return error_create(
+                                    return error_insert(
                                         "there are incosistent data values in rows",
                                     );
                                 }
@@ -552,7 +661,7 @@ pub fn validate_insert(token_vector: &Vec<Token>) -> bool {
                                 Some(Token::CLOSING_PARENTHESIS) => {
                                     if !is_first_row {
                                         if current_rows_values != values_count {
-                                            return error_create("last parsed data row's value count is different from the first one.");
+                                            return error_insert("last parsed data row's value count is different from the first one.");
                                         }
                                     }
                                     println!("closing parenthesis found. values closed.");
@@ -605,7 +714,7 @@ pub fn validate_insert(token_vector: &Vec<Token>) -> bool {
                             )
                         }
                     },
-                    None => return error_create("INSERT statement too short, went out of bounds"),
+                    None => return error_insert("INSERT statement too short, went out of bounds"),
                 }
             }
         }
@@ -679,8 +788,8 @@ pub fn validate_drop(token_vector: &Vec<Token>) -> bool {
         Token::NO_BACKTICK_NAME_UNIT(_) | Token::NAME_UNIT(_) => (), //if it's a table / database name with "`" characters or without
         _ => return error_drop("Drop type isn't followed by a name"),
     }
-    if !check_next_token(token_vector.get(3), Token::SEMICOLON){
-        return  error_drop("command isn't closed");
+    if !check_next_token(token_vector.get(3), Token::SEMICOLON) {
+        return error_drop("command isn't closed");
     }
     println!("valid drop statement");
 

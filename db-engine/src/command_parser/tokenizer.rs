@@ -88,6 +88,12 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         "HAVING" => token = Token::HAVING,
         "LIMIT" => token = Token::LIMIT,
 
+        "COUNT" => token = Token::COUNT,
+        "SUM" => token = Token::SUM,
+        "AVG" => token = Token::AVG,
+        "MAX" => token = Token::MAX,
+        "MIN" => token = Token::MIN,
+
         "ASC" => token = Token::ASC,
         "DESC" => token = Token::DESC,
 

@@ -18,7 +18,7 @@ pub enum StringWrapper {
 #[derive(Debug, PartialEq, Clone)]
 pub enum IsSequenceValid {
     True(usize),
-    False
+    False,
 }
 
 #[allow(non_camel_case_types)]
@@ -76,6 +76,14 @@ pub enum Token {
     HAVING,
     LIMIT,
 
+    COUNT,
+    SUM,
+    AVG,
+    MAX,
+    MIN,
+    //DATE_SUB,
+    //INTERVAL,
+    //CURDATE,
     ASC,
     DESC,
 
