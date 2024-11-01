@@ -339,7 +339,7 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
     true
 }
 
-fn check_expressions(token_vector: &Vec<Token>, start_index: usize) -> IsSequenceValid {
+fn check_expressions(token_vector: &Vec<Token>, start_index: usize, ending_tokens: Vec<Token>) -> IsSequenceValid {
     //checks for a condition, and whether if it's an and / or clause. Obviously returns false if it fails
     //if it encounters an opening parenthesis, recursion will happen
 
@@ -347,90 +347,7 @@ fn check_expressions(token_vector: &Vec<Token>, start_index: usize) -> IsSequenc
     let mut i = start_index;
 
     let tokens_len = token_vector.len();
-    while i < tokens_len {
-        //each iteration checks for a whole expression: num < 3 | string = "stringval" | string2 LIKE "%val%"
-        let current_token = token_vector.get(i);
-        match current_token {
-            Some(Token::OPEN_PARENTHESIS) => {
-                i += 1;
-                match check_expressions(token_vector, i) {
-                    IsSequenceValid::True(val) => i = val, //increases i to val
-                    IsSequenceValid::False => {
-                        println!("failed to parse where expression at an opening parenthesis");
-                        return IsSequenceValid::False;
-                    }
-                }
-                // i += 1;
-                // if !check_next_token(token_vector.get(i), Token::CLOSING_PARENTHESIS){
-                //     println!("opening parenthesis found but closing isn't");
-                //     return IsSequenceValid::False;
-                // }
-            }
-            Some(Token::AND) | Some(Token::OR) => {
-                i += 1;
-                match check_expressions(token_vector, i) {
-                    IsSequenceValid::True(val) => i = val, //increases i to val
-                    IsSequenceValid::False => {
-                        println!("failed to parse where expression at an AND / OR relation");
-                        return IsSequenceValid::False;
-                    }
-                }
-            }
-            Some(Token::NO_BACKTICK_NAME_UNIT(_)) => {
-                match token_vector.get(i + 2) {
-                    //jump ahead and check if it's a number or text or bool
-                    Some(Token::INT_VALUE(_)) | Some(Token::DOUBLE_VALUE(_)) => {
-                        match token_vector.get(i + 1) {
-                            Some(Token::EQUAL_SIGN)
-                            | Some(Token::SMALLER_THAN_OPERATOR)
-                            | Some(Token::BIGGER_THAN_OPERATOR) => {
-                                println!("number comparison valid")
-                            }
-                            _ => {
-                                println!("number comparison isn't valid, use <, >, or =");
-                                return IsSequenceValid::False;
-                            }
-                        }
-                    }
-                    Some(Token::BOOL_VALUE(_)) => {
-                        if check_next_token(token_vector.get(i + 1), Token::EQUAL_SIGN) {
-                            println!("boolean comparison legit")
-                        } else {
-                            println!("boolean comparison didn't have an equal sign");
-                            return IsSequenceValid::False;
-                        }
-                    }
-                    Some(Token::STRING_VALUE(_)) => match token_vector.get(i + 1) {
-                        Some(Token::EQUAL_SIGN) | Some(Token::LIKE) => {
-                            println!("string comparison valid")
-                        }
-                        _ => {
-                            println!("string comparison isn't valid, use either = or \"LIKE\"");
-                            return IsSequenceValid::False;
-                        }
-                    },
-                    None => {
-                        println!("where clause ended before it should have...");
-                        return IsSequenceValid::False;
-                    }
-                    _ => {
-                        println!("the other side of the comparison should have a value as well.");
-                        return IsSequenceValid::False;
-                    }
-                }
 
-                i += 3; //it can be incremented by 3, since the next 2 tokens were already checked
-            }
-            Some(Token::SEMICOLON) => {
-                return IsSequenceValid::True(i);
-            }
-
-            _ => {
-                println!("Invalid token encountered while checking expressions: {current_token:?}");
-                return IsSequenceValid::False;
-            }
-        }
-    }
 
     IsSequenceValid::True(i)
 }
@@ -438,7 +355,7 @@ fn check_expressions(token_vector: &Vec<Token>, start_index: usize) -> IsSequenc
 fn check_name_comma_seq(
     token_vector: &Vec<Token>,
     start_index: usize,
-    ending_token: Vec<Token>,
+    ending_tokens: Vec<Token>,
 ) -> IsSequenceValid {
     let tokens_len = token_vector.len();
     let mut i = start_index;
@@ -457,7 +374,7 @@ fn check_name_comma_seq(
                         println!("comma found after {name}");
                     }
                     Some(other_token) => {
-                        for token in &ending_token {
+                        for token in &ending_tokens {
                             if other_token == token {
                                 println!("One of the valid ending matches found.");
                                 return IsSequenceValid::True(i);
@@ -548,6 +465,7 @@ pub fn validate_select(token_vector: &Vec<Token>) -> bool {
                 }
                 found_statements[0] = true;
                 i += 1;
+                //TODO: fix the function call
                 match check_expressions(token_vector, i) {
                     IsSequenceValid::False => {
                         return error_select("where clause's expression checking failed")

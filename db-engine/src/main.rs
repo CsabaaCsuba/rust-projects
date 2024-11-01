@@ -112,6 +112,10 @@ mod tests {
         let select = "SELECT column1, intcolumn FROM `my_table` WHERE intcolumn<3 AND (column1 LIKE \"halo\" OR column1 LIKE \"SZIA\");".to_string();
         let select_tokens = tokenizer::parse_command(&select);
         assert_eq!(true, syntax_checker::validate_syntax(&select_tokens));
+
+        let select = "SELECT column1, intcolumn FROM `my_table` WHERE ((intcolumn<3) AND (column1 LIKE \"halo\" OR column1 LIKE \"SZIA\")) HAVING intcolumn = 4;".to_string();
+        let select_tokens = tokenizer::parse_command(&select);
+        assert_eq!(true, syntax_checker::validate_syntax(&select_tokens));
     }
 }
 
