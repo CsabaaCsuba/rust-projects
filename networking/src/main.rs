@@ -7,6 +7,13 @@ struct Server {
 
 }
 
+impl Server {
+    fn new() -> Self {
+        return Server { endpoints:vec![]};
+    }
+    
+}
+
 #[derive(Debug, Clone, Copy)]
 enum method {
     GET,
