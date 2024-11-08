@@ -339,7 +339,7 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
     true
 }
 
-fn check_expressions(token_vector: &Vec<Token>, start_index: usize, ending_tokens: Vec<Token>) -> IsSequenceValid {
+fn check_expression(token_vector: &Vec<Token>, start_index: usize, ending_tokens: Vec<Token>) -> IsSequenceValid {
     //checks for a condition, and whether if it's an and / or clause. Obviously returns false if it fails
     //if it encounters an opening parenthesis, recursion will happen
 
@@ -347,6 +347,9 @@ fn check_expressions(token_vector: &Vec<Token>, start_index: usize, ending_token
     let mut i = start_index;
 
     let tokens_len = token_vector.len();
+    
+
+
 
 
     IsSequenceValid::True(i)
@@ -466,7 +469,7 @@ pub fn validate_select(token_vector: &Vec<Token>) -> bool {
                 found_statements[0] = true;
                 i += 1;
                 //TODO: fix the function call
-                match check_expressions(token_vector, i) {
+                match check_expression(token_vector, i, vec![Token::GROUP, Token::ORDER, Token::HAVING, Token::LIMIT, Token::SEMICOLON]) {
                     IsSequenceValid::False => {
                         return error_select("where clause's expression checking failed")
                     }
@@ -503,7 +506,7 @@ pub fn validate_select(token_vector: &Vec<Token>) -> bool {
                 }
                 found_statements[2] = true;
                 i += 1;
-                match check_expressions(token_vector, i) {
+                match check_expression(token_vector, i, vec![Token::LIMIT, Token::SEMICOLON]) {
                     //the same function can be used for HAVING as well
                     IsSequenceValid::False => {
                         return error_select("where clause's expression checking failed")
