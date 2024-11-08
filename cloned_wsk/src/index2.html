@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Football Scores</title>
+    <title>Chatting</title>
     <!-- Bootstrap CSS -->
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -13,10 +13,7 @@
             align-items: center;
             height: 100vh;
             background-color: #f8f9fa;
-            background-image: url('football.png'); /* Background image */
-            background-size: cover; /* Cover the entire background */
-            background-repeat: no-repeat; /* Do not repeat the image */
-            background-position: center center; /* Center the image horizontally and vertically */
+
         }
         .score-board {
             background: rgba(255, 255, 255, 0.9); /* Adjust transparency if needed */
@@ -30,12 +27,18 @@
             font-weight: bold;
             margin: 20px 0;
         }
+        #error {
+            color: red;
+        }
     </style>
 </head>
 <body>
-    <div class="score-board">
-        <h1>Live Football Scores</h1>
-        <div id="score" class="score">Loading...</div>
+    <div class="main">
+        <form action="" onsubmit="login_user" id ="loginform">
+            <p id="error"></p>
+            <input type="text" id="username">
+            <button type="submit">Submit</button>
+        </form>
     </div>
 
     <!-- jQuery and Bootstrap JS -->
@@ -43,6 +46,15 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
         const ws = new WebSocket('ws://127.0.0.1:8080');
+        const usernameField = document.getElementById("username")
+        const errorField = document.getElementById("error")
+
+        function login_user(event){
+            event.preventDefault();
+            (username != "") ? ws.send(JSON.stringify({"username":usernameField.value})) : errorField.textContent = "please provide a username!"
+            
+        }
+
 
         ws.onopen = function() {
             console.log('Connected to WebSocket server');
@@ -58,6 +70,8 @@
             console.log('Disconnected from WebSocket server');
             document.getElementById('score').innerText = 'Disconnected';
         };
+
+        
 
         function send_msg(msg){
             ws.send(msg);
