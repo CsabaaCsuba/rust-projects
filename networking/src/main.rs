@@ -1,6 +1,24 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
+#[derive(Debug, Clone, Copy)]
+enum method {
+    GET,
+    POST,
+    PUT,
+    PATCH,
+    DELETE,
+    HEAD,
+    OPTIONS
+}
+
+struct EndpointHandler {
+    accepted_method: method,
+    endpoint_format_str: String, //endpoints can be formatted like this: /books/{i32} -> i32 for the type
+    handler_function: fn(String /*Takes in the request as a String and returns a JSON-based string (API response)*/) -> String,
+
+}
+
 struct Server {
     address: String,
     endpoints: Vec<String>,
@@ -31,16 +49,7 @@ impl Server {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-enum method {
-    GET,
-    POST,
-    PUT,
-    PATCH,
-    DELETE,
-    HEAD,
-    OPTIONS
-}
+
 
 fn check_method(request_str: &String) -> Option<method>{
     if request_str[0..4].trim() == "GET"{
