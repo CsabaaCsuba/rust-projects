@@ -1,5 +1,6 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use networking::GET;
 
 #[derive(Debug, Clone, Copy)]
 enum method {
@@ -47,6 +48,11 @@ impl Server {
 
         
     }
+}
+
+#[GET("/hi")]
+fn index() -> String{
+    String::from("{\"msg\":\"hi\"}")
 }
 
 
@@ -129,9 +135,9 @@ fn handle_client(mut stream: TcpStream) {
     println!("found endpoint: {}", check_endpoint(&request.to_string()));
     println!("\n----------\nwhole request: \n{}----------\n", request);
 
-    let response_content = "{\"msg\":\"hi from server\"}";
+    let response_content = index();
 
-    send_response(&mut stream, 200, response_content);
+    send_response(&mut stream, 200, &response_content);
 
     
 }
