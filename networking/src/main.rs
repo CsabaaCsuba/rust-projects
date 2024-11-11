@@ -20,16 +20,48 @@ struct EndpointHandler {
 
 }
 
+struct Request {
+    used_method: method,
+    endpoint: String,
+    header: String,
+    body: String,
+}
+impl Request {
+    fn from(whole_string: &str) -> Self {
+        let m: method;
+        if let Some(methodval) = check_method(whole_string) {
+            m = methodval;
+        }
+        else {
+            m = method::GET;
+        }
+
+        //content-length is always the last thing specified in a header
+        let content_length_line = match whole_string.find("Content-Length:") {
+            Some(idx) => &whole_string[idx..],
+            None => panic!("content-length not found. Request doesn't adhere to HTTP standard")
+        };
+        let separator_idx = match separator.find("\n") { //the newline after Content-Length ensures 
+            Some(idx) => idx,
+            None => panic!("the request doesn't have an empty line"),
+        };
+
+
+
+        return Request {used_method:m, endpoint:String::from(""), body:String::from("")}
+    }
+}
+
 struct Server {
     address: String,
-    endpoints: Vec<String>,
-    
+
+
 
 }
 
 impl Server {
     fn new(addr: &str) -> Self {
-        return Server { address:addr.to_string(), endpoints:vec![]};
+        return Server { address:addr.to_string()};
     }
 
     fn run(&self) {
@@ -45,19 +77,21 @@ impl Server {
                 Err(error) => eprintln!("Stream has an error: {:?}", error),
             }
         }
+    }
 
-        
+    fn register(&self, methods: Vec<method>, endpoint: &str, function: fn(Request)->String) {
+
     }
 }
 
-#[GET("/hi")]
-fn index() -> String{
-    String::from("{\"msg\":\"hi\"}")
-}
+// #[GET("/hi")]
+// fn index() -> String{
+//     String::from("{\"msg\":\"hi\"}")
+// }
 
 
 
-fn check_method(request_str: &String) -> Option<method>{
+fn check_method(request_str: &str) -> Option<method>{
     if request_str[0..4].trim() == "GET"{
         return Some(method::GET);
     }
@@ -133,9 +167,10 @@ fn handle_client(mut stream: TcpStream) {
         send_response(&mut stream, 400, "");
     }
     println!("found endpoint: {}", check_endpoint(&request.to_string()));
-    println!("\n----------\nwhole request: \n{}----------\n", request);
+    println!("\n--------------------\nwhole request: \n{}\n--------------------\n", request);
 
-    let response_content = index();
+    let response_content = String::from("{\"msg\":\"halo\"}");
+
 
     send_response(&mut stream, 200, &response_content);
 
