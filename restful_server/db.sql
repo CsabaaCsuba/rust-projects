@@ -15,10 +15,10 @@ create table matches (
     user1_id int not null,
     user2_id int not null,
 
-    gamestate char, 
     -- 0 unfinished, 1, player1 won, 2 player2 won, 3 draw
-
-    -- gamemap bigint, 
+    gamestate char, 
+    
+ 
 --TODO: write an algorithm that maps a 10x10 map with the standard amount of ships (1x4, 2x3, 3x2, 4x1) 
 --      and their position (horizontal or vertical) to a 64-bit integer
 
@@ -29,6 +29,7 @@ create table matches (
     user1_mapstate1 bigint, 
     user1_mapstate2 bigint,
 
+    --hitmap is the map of where the user has hit the other player's map
     user1_hitmap1 bigint,
     user1_hitmap2 bigint,
 

@@ -1,11 +1,11 @@
 use crate::command_parser::{tokens::StringWrapper, Token};
-use std::{env::current_exe, mem::discriminant};
+use std::{collections::HashMap, env::current_exe, mem::discriminant};
 
 use super::tokens::IsSequenceValid;
 
-fn error_create(msg: &str) -> bool {
+fn error_create(msg: &str) -> Option<CreateCommand> {
     println!("create statement: validation error: {msg}");
-    return false;
+    return None;
 }
 
 // fn match_token(vector: &Vec<Token>, idx: usize, matched_token: Token){ //would be too slow compared to just checking the token's length
@@ -41,7 +41,43 @@ fn match_rigid_pattern(
     true
 }
 
-pub fn validate_create(token_vector: &Vec<Token>) -> bool {
+pub enum CreateType {
+    Database,
+    Table
+}
+
+pub enum DefaultValue {
+    Int(i32),
+    Text(String),
+    Double(f64),
+    Bool(bool)
+}
+
+pub enum FieldAttr {
+    NOT_NULL,
+    AUTO_INCREMENT,
+    PRIMARY_KEY,
+    UNIQUE,
+    DEFAULT(DefaultValue)
+
+}
+
+struct CreateCommand {
+    token_list: Vec<Token>,
+    createtype: CreateType,
+    is_collation_specified: bool, //these are ignored in case of a table
+    is_charset_specified: bool,
+
+
+    field_count: u32, //this is ignored in case of a database
+//an index will be hashed, and the values are the specific stored Attributes (but there can be multiple attributes, so they are stored in a vector)
+    field_attrs: HashMap<u32, Vec<FieldAttr>>, 
+
+
+
+}
+
+pub fn validate_create(token_vector: &Vec<Token>) -> Option<CreateCommand> {
     //CREATE -> DATABASE -> `database_name` -> COLLATE -> "collation" (optional) -> CHARACTER -> SET -> "charset" (optional);
     //CREATE -> TABLE -> `table_name` -> (column_name TYPE [optional args], column_name TYPE [optional args]);
     println!("validating create statement");
@@ -52,7 +88,7 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
             "Wrong first token or wrong command length: {:?}",
             token_vector
         );
-        return false;
+        return None;
     }
 
     match &token_vector[2] {
@@ -336,7 +372,6 @@ pub fn validate_create(token_vector: &Vec<Token>) -> bool {
     }
 
     println!("valid create statement.\n");
-    true
 }
 
 fn check_expression(token_vector: &Vec<Token>, start_index: usize, ending_tokens: Vec<Token>) -> IsSequenceValid {
