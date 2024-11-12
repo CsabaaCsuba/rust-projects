@@ -29,9 +29,9 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         return Some(Token::STRING_VALUE(StringWrapper::Data(return_value)));
     } else if (first_char as u8) >= 48 && (first_char as u8) <= 57 {
         let numeric_value = command_part.parse::<f64>().unwrap();
-        if (numeric_value as i32) as f64 == numeric_value {
+        if (numeric_value as i64) as f64 == numeric_value {
             //if numeric value is a whole number
-            return Some(Token::INT_VALUE(numeric_value as i32));
+            return Some(Token::INT_VALUE(numeric_value as i64));
         } else {
             return Some(Token::DOUBLE_VALUE(numeric_value));
         }
@@ -134,7 +134,7 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
 
 #[allow(non_camel_case_types)]
 enum number_type {
-    INT(i32),
+    INT(i64),
     DOUBLE(f64),
     NaN,
 }
@@ -181,7 +181,7 @@ fn str_to_num(command_string: &[u8], idx: usize, number_ptr: &mut number_type) -
             parsed_num = if is_double {
                 number_type::DOUBLE(currently_parsed)
             } else {
-                number_type::INT(currently_parsed as i32)
+                number_type::INT(currently_parsed as i64)
             };
             *number_ptr = parsed_num;
             return i - 1;
@@ -265,7 +265,7 @@ fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut
             //if parsing was succesfull
             match parsed_num {
                 number_type::INT(val) => {
-                    *token_ptr = Token::INT_VALUE(val);
+                    *token_ptr = Token::INT_VALUE(val as i64);
                 }
                 number_type::DOUBLE(val) => {
                     *token_ptr = Token::DOUBLE_VALUE(val);

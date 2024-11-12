@@ -1,8 +1,1 @@
-1. write a better tokenizer, which doesn't rely on .split_whitespaces() [done]
-2. write a wrapper enum for enums with a string value [done]
-3. write the insert statement validator [in progress - longer one done]
-4. write the select statement validator [in progress]
-5. write the update statement validator
-6. write the select statement validator
-7. write the alter statement validator
-8. write a delete validator [will start soon]
+1. 

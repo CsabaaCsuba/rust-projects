@@ -1,15 +1,9 @@
 pub mod tokenizer;
 pub mod tokens;
+pub mod parser;
 use tokenizer::*;
-use tokens::Token;
-pub mod syntax_checker; //public makes it available to the other parts of the program
-use syntax_checker::validate_syntax;
-
 use std::io;
 
-// static POSSIBLE_TOKENS: [&str; 8] = [
-//     "CREATE", "SELECT", "INSERT", "UPDATE", "DELETE", "ALTER", "TABLE", "DATABASE",
-// ];
 
 pub fn read_command_loop() {
     let mut command = String::with_capacity(128);
@@ -21,15 +15,16 @@ pub fn read_command_loop() {
             command.push_str(&input);
         }
 
-        let parsed_tokens = parse_command(&command);
-        if parsed_tokens.capacity() == 0 {
+        let tokens = parse_command(&command);
+        if tokens.capacity() == 0 {
             //if the command fails, an error message is printed -> only a jump to the next iteration is needed
+            println!("Parsing command failed.\n");
             continue;
         }
-        if validate_syntax(&parsed_tokens) {
-            println!("syntax is valid.");
-            //if syntax validation succeeded
-        }
+
+
+
+
 
         command.clear();
         input.clear();

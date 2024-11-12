@@ -2,9 +2,19 @@
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeNotation {
     INT,
-    TEXT,
+    BIGINT,
+    TINYINT,
+    FLOAT,
     DOUBLE,
     BOOL,
+    CHAR,
+    VARCHAR,
+    TEXT,
+
+    DATE, //year, month, day
+    TIME, //hours, minutes, seconds
+    DATETIME, //year-month-day hours:minutes:seconds
+    TIMESTAMP, //same as datetime but stores everything as UTC0 (so time zone has to be specified upon saving I guess?)
 }
 
 #[allow(unused)]
@@ -44,7 +54,7 @@ pub enum Token {
 
     NAME_UNIT(StringWrapper),
     STRING_VALUE(StringWrapper),
-    INT_VALUE(i32),
+    INT_VALUE(i64),
     BOOL_VALUE(bool),
     DOUBLE_VALUE(f64),
 
