@@ -1,4 +1,4 @@
-use super::tokens::{StringWrapper, Token, TypeNotation};
+use super::tokens::{SWrap, Token, TypeNotation};
 
 fn parse_next_command_part(command_part: &str) -> Option<Token> {
     let token: Token;
@@ -15,7 +15,7 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         let token_value = command_part.get(1..cmd_part_len - 1).unwrap();
 
         let return_value = token_value.to_string();
-        return Some(Token::NAME_UNIT(StringWrapper::Data(return_value)));
+        return Some(Token::NAME_UNIT(SWrap::Data(return_value)));
     } else if first_char == '"' {
         let cmd_part_len = command_part.len();
 
@@ -26,7 +26,7 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         let token_value = command_part.get(1..cmd_part_len - 1).unwrap();
 
         let return_value = token_value.to_string();
-        return Some(Token::STRING_VALUE(StringWrapper::Data(return_value)));
+        return Some(Token::STRING_VALUE(SWrap::Data(return_value)));
     } else if (first_char as u8) >= 48 && (first_char as u8) <= 57 {
         let numeric_value = command_part.parse::<f64>().unwrap();
         if (numeric_value as i64) as f64 == numeric_value {
@@ -101,10 +101,20 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
 
         "UNION" => token = Token::UNION,
 
-        "DOUBLE" => token = Token::TYPE_KEYWORD(TypeNotation::DOUBLE),
         "INT" => token = Token::TYPE_KEYWORD(TypeNotation::INT),
-        "TEXT" => token = Token::TYPE_KEYWORD(TypeNotation::TEXT),
+        "BIGINT" => token = Token::TYPE_KEYWORD(TypeNotation::BIGINT),
+        "TINYINT" => token = Token::TYPE_KEYWORD(TypeNotation::TINYINT),
+        "FLOAT" => token = Token::TYPE_KEYWORD(TypeNotation::FLOAT),
+        "DOUBLE" => token = Token::TYPE_KEYWORD(TypeNotation::DOUBLE),
         "BOOL" => token = Token::TYPE_KEYWORD(TypeNotation::BOOL),
+        "CHAR" => token = Token::TYPE_KEYWORD(TypeNotation::CHAR),
+        "VARCHAR" => token = Token::TYPE_KEYWORD(TypeNotation::VARCHAR),
+        "TEXT" => token = Token::TYPE_KEYWORD(TypeNotation::TEXT),
+    
+        "DATE" => token = Token::TYPE_KEYWORD(TypeNotation::DATE),
+        "TIME" => token = Token::TYPE_KEYWORD(TypeNotation::TIME),
+        "DATETIME" => token = Token::TYPE_KEYWORD(TypeNotation::DATETIME),
+        "TIMESTAMP" => token = Token::TYPE_KEYWORD(TypeNotation::TIMESTAMP),
 
         "PRIMARY" => token = Token::PRIMARY,
         "KEY" => token = Token::KEY,
@@ -126,7 +136,7 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         "ACTION" => token = Token::ACTION,
         "RESTRICT" => token = Token::RESTRICT,
 
-        _ => token = Token::NO_BACKTICK_NAME_UNIT(StringWrapper::Data(experimental_str)), //experimental_str is consumed here, but it's no issue
+        _ => token = Token::NO_BACKTICK_NAME_UNIT(SWrap::Data(experimental_str)), //experimental_str is consumed here, but it's no issue
     }
 
     Some(token)
@@ -245,7 +255,7 @@ fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut
             println!("string with 0 characters was read");
             return 0;
         }
-        *token_ptr = Token::STRING_VALUE(StringWrapper::Data(return_string));
+        *token_ptr = Token::STRING_VALUE(SWrap::Data(return_string));
 
         return idx + string_len + 1; //for the ending character
     } else if command_string[i] == b'`' {
@@ -255,7 +265,7 @@ fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut
             println!("no-backtick name unit with 0 characters was read");
             return 0;
         }
-        *token_ptr = Token::NAME_UNIT(StringWrapper::Data(return_string));
+        *token_ptr = Token::NAME_UNIT(SWrap::Data(return_string));
 
         return idx + string_len + 1;
     } else if command_string[i] > 48 && command_string[i] < 57 {

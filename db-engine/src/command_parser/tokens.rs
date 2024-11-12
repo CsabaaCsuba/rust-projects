@@ -19,7 +19,7 @@ pub enum TypeNotation {
 
 #[allow(unused)]
 #[derive(Debug, PartialEq, Clone)]
-pub enum StringWrapper {
+pub enum SWrap {
     Data(String),
     Filler,
 }
@@ -47,13 +47,15 @@ pub enum Token {
     // TRUNCATE, //to quickly remove all rows from a table??
     TABLE,
     DATABASE,
+    INDEX,
+    TRIGGER,
 
     INTO,
 
-    NO_BACKTICK_NAME_UNIT(StringWrapper), //fields upon creation
+    NO_BACKTICK_NAME_UNIT(SWrap), //fields upon creation
 
-    NAME_UNIT(StringWrapper),
-    STRING_VALUE(StringWrapper),
+    NAME_UNIT(SWrap),
+    STRING_VALUE(SWrap),
     INT_VALUE(i64),
     BOOL_VALUE(bool),
     DOUBLE_VALUE(f64),
@@ -110,6 +112,9 @@ pub enum Token {
     UNIQUE,
     AUTO_INCREMENT,
     DEFAULT,
+    // CHECK,
+    // CURRENT_TIMESTAMP,
+
 
     CONSTRAINT,
 

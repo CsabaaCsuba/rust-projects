@@ -1,8 +1,10 @@
+use core::error;
 //this will convert token arrays to easily "digestible" data for the database engine
-use std::{env::current_exe, mem::discriminant};
+use std::{collections::HashMap, env::current_exe, mem::discriminant};
 
 
-use super::tokens::Token;
+use super::tokens::{SWrap, Token};
+use super::tokens::TypeNotation;
 
 pub fn check_next_token(checked_token: Option<&Token>, check_against: Token) -> bool {
     //checks if a vector.get() element even exists, and then if it's the right token
@@ -39,10 +41,131 @@ struct DBCreationData {
     charset: String,
 }
 
-impl DBCreationData {
+trait TokenConstruct {
     //the validity checking will happen here. Since it can fail, it has to be unwrapped upon calling
-    fn from_tokens(token_vector: Vec<Token>) -> Option<Self> { 
+    fn from_tokens(token_vector: Vec<Token>) -> Option<Self> where Self: Sized;
+}
+
+fn error_db_create(msg: &str) -> Option<DBCreationData> {
+    eprintln!("Error creating database: {msg}");
+    return None;
+}
+
+impl TokenConstruct for DBCreationData {
+    fn from_tokens(token_vector: Vec<Token>) -> Option<Self> {
+        let statement: DBCreationData;
+        let db_name: String;
+        let collation: String;
+        let charset: String;
+
+        let token_pattern = vec![
+            Token::CREATE,
+            Token::DATABASE,
+            Token::NAME_UNIT(SWrap::Filler),
+            Token::CHARACTER,
+            Token::SET,
+            Token::STRING_VALUE(SWrap::Filler),
+            Token::COLLATE,
+            Token::STRING_VALUE(SWrap::Filler),
+            Token::SEMICOLON,
+        ];
+
+        if match_rigid_pattern(&token_vector, token_pattern, 0) {
+            match &token_vector[2] {
+                Token::NAME_UNIT(SWrap::Data(db_n)) => db_name = db_n.clone(),
+                _ => todo!() //this can't happen logically
+            }
+            match &token_vector[5] {
+                Token::STRING_VALUE(SWrap::Data(coll)) => collation = coll.clone(),
+                _ => todo!()
+            }
+            match &token_vector[7] {
+                Token::STRING_VALUE(SWrap::Data(chars)) => charset = chars.clone(),
+                _ => todo!()
+            }
+        }
+        else {
+            return error_db_create("Expected syntax: CREATE DATABASE database_name CHARACTER SET \"utf8\" COLLATE \"utf8_unicode_ci\";");
+        }
+
+        statement = DBCreationData {
+            db_name,
+            collation,
+            charset,
+        };
+
+        return Some(statement);
 
     }
 }
 
+pub enum Value {
+    BOOL(bool),
+    
+    BIGINT(i64),
+    INT(i32),
+    TINYINT(i16),
+    
+    CHAR(SWrap),
+    VARCHAR(SWrap),
+
+    DATE(SWrap),
+    TIME(SWrap),
+    DATETIME(SWrap),
+    TIMESTAMP(SWrap),
+    
+}
+
+pub enum FieldAttributes {
+    NOT_NULL,
+    UNIQUE,
+    DEFAULT(Value),
+    AUTO_INCREMENT,
+    // CHECK,
+}
+
+struct ForeignKeyRelation {
+    local_field: Box<str>, //&'static str is a mess, so it's easier with Boxes
+    foreign_table: Box<str>,
+    foreign_field: Box<str>,
+}
+
+struct TableCreationData {
+    table_name: String,
+    field_count: i32,
+    fields: Vec<(String, TypeNotation)>, //using tuples eliminates the need for a field_types field
+    attribute_table: HashMap<String, Vec<FieldAttributes>>,
+
+    foreign_keys: Vec<ForeignKeyRelation>,
+
+}
+
+impl TokenConstruct for TableCreationData {
+    fn from_tokens(token_vector: Vec<Token>) -> Option<Self> {
+        let return_struct = TableCreationData {
+            table_name: String::new(),
+            field_count: 0,
+            fields: vec![],
+            attribute_table: HashMap::new(),
+            foreign_keys: vec![],
+        };
+
+
+
+
+        Some(return_struct)
+    }
+}
+
+struct InsertData {
+    table_name: String,
+    field_count: usize, //this is the length of the inner vector (the amount of fields the insert uses)
+    elements_inserted: usize, //this is the amount of elements inserted into the database -> the length of the outer vector
+    fields_data: Vec<Vec<Value>>,
+}
+
+impl TokenConstruct for InsertData {
+    fn from_tokens(token_vector: Vec<Token>) -> Option<Self> {
+        
+    }
+}
