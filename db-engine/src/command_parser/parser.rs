@@ -168,7 +168,7 @@ impl TokenConstruct for InsertData {
     fn from_tokens(token_vector: Vec<Token>) -> Option<Self> {
         //todo: 1. check for rigid pattern INSERT INTO table_name (
         //2. after the parentheses, count the amount of fields until the closing parenthesis,
-        //so there will be a row_length which will be enforced when counting the actual values
+        //so there will be a row_length which will be enforced when counting the amount of values in each insert row
 
 
     }
