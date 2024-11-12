@@ -157,15 +157,19 @@ impl TokenConstruct for TableCreationData {
     }
 }
 
-struct InsertData {
+struct InsertData { //the length specifies how many elements will be used in the row
     table_name: String,
-    field_count: usize, //this is the length of the inner vector (the amount of fields the insert uses)
-    elements_inserted: usize, //this is the amount of elements inserted into the database -> the length of the outer vector
-    fields_data: Vec<Vec<Value>>,
+    rows_inserted: usize, //this is the amount of rows inserted into the database (this is the outer vector's length)
+    row_length: usize, //amount of fields in a row (this is the inner vector's length [this has to be the same everywhere])
+    fields_data: Vec<Vec<Value>>, 
 }
 
 impl TokenConstruct for InsertData {
     fn from_tokens(token_vector: Vec<Token>) -> Option<Self> {
-        
+        //todo: 1. check for rigid pattern INSERT INTO table_name (
+        //2. after the parentheses, count the amount of fields until the closing parenthesis,
+        //so there will be a row_length which will be enforced when counting the actual values
+
+
     }
 }
