@@ -110,7 +110,7 @@ fn parse_next_command_part(command_part: &str) -> Option<Token> {
         "CHAR" => token = Token::TYPE_KEYWORD(TypeNotation::CHAR),
         "VARCHAR" => token = Token::TYPE_KEYWORD(TypeNotation::VARCHAR),
         "TEXT" => token = Token::TYPE_KEYWORD(TypeNotation::TEXT),
-    
+
         "DATE" => token = Token::TYPE_KEYWORD(TypeNotation::DATE),
         "TIME" => token = Token::TYPE_KEYWORD(TypeNotation::TIME),
         "DATETIME" => token = Token::TYPE_KEYWORD(TypeNotation::DATETIME),
@@ -186,7 +186,8 @@ fn str_to_num(command_string: &[u8], idx: usize, number_ptr: &mut number_type) -
             || command_string[i] == b'&'
             || command_string[i] == b'|'
             || command_string[i] == b'^' //bitwise xor
-            || command_string[i] == b'~' //bitwise not
+            || command_string[i] == b'~'
+        //bitwise not
         {
             parsed_num = if is_double {
                 number_type::DOUBLE(currently_parsed)
@@ -271,7 +272,8 @@ fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut
     } else if command_string[i] > 48 && command_string[i] < 57 {
         let mut parsed_num: number_type = number_type::NaN;
         let new_idx = str_to_num(command_string, i, &mut parsed_num);
-        if i <= new_idx { //it can be equal tho, if the number is just one character
+        if i <= new_idx {
+            //it can be equal tho, if the number is just one character
             //if parsing was succesfull
             match parsed_num {
                 number_type::INT(val) => {
@@ -287,7 +289,10 @@ fn parse_next_multi_char_part(command_string: &[u8], idx: usize, token_ptr: &mut
             }
             return new_idx;
         } else {
-            println!("parsing number failed... Last char: {:?}", command_string[i] as char);
+            println!(
+                "parsing number failed... Last char: {:?}",
+                command_string[i] as char
+            );
             return 0;
         }
     } else {
@@ -319,21 +324,54 @@ fn parse_entire_command(command: &String) -> Vec<Token> {
     while i < command_bytes.len() {
         println!("current byte: {:?}", command_bytes[i] as char);
         match command_bytes[i] {
-            b'<' => {parsed_tokens.push(Token::SMALLER_THAN_OPERATOR); println!("one character parsed");i+=1},
-            b'>' => {parsed_tokens.push(Token::BIGGER_THAN_OPERATOR); println!("one character parsed");i+=1},
-            b'=' => {parsed_tokens.push(Token::EQUAL_SIGN); println!("one character parsed");i+=1},
-            b'(' => {parsed_tokens.push(Token::OPEN_PARENTHESIS); println!("one character parsed");i+=1},
-            b')' => {parsed_tokens.push(Token::CLOSING_PARENTHESIS); println!("one character parsed");i+=1},
-            b',' => {parsed_tokens.push(Token::COMMA); println!("one character parsed");i+=1},
-            b';' => {parsed_tokens.push(Token::SEMICOLON); println!("one character parsed");i+=1},
-            b'*' => {parsed_tokens.push(Token::ASTERISK); println!("one character parsed");i+=1},
-            b'\n' | b'\r' | b' ' => i+=1, //if it's a formatter, just continue
+            b'<' => {
+                parsed_tokens.push(Token::SMALLER_THAN_OPERATOR);
+                println!("one character parsed");
+                i += 1
+            }
+            b'>' => {
+                parsed_tokens.push(Token::BIGGER_THAN_OPERATOR);
+                println!("one character parsed");
+                i += 1
+            }
+            b'=' => {
+                parsed_tokens.push(Token::EQUAL_SIGN);
+                println!("one character parsed");
+                i += 1
+            }
+            b'(' => {
+                parsed_tokens.push(Token::OPEN_PARENTHESIS);
+                println!("one character parsed");
+                i += 1
+            }
+            b')' => {
+                parsed_tokens.push(Token::CLOSING_PARENTHESIS);
+                println!("one character parsed");
+                i += 1
+            }
+            b',' => {
+                parsed_tokens.push(Token::COMMA);
+                println!("one character parsed");
+                i += 1
+            }
+            b';' => {
+                parsed_tokens.push(Token::SEMICOLON);
+                println!("one character parsed");
+                i += 1
+            }
+            b'*' => {
+                parsed_tokens.push(Token::ASTERISK);
+                println!("one character parsed");
+                i += 1
+            }
+            b'\n' | b'\r' | b' ' => i += 1, //if it's a formatter, just continue
 
             //in case of an other char, if parse was succesfull
             _ => {
                 let new_idx = parse_next_multi_char_part(command_bytes, i, &mut token_space);
                 println!("new idx: {new_idx}, i: {i}");
-                if i <= new_idx { //in case of numbers which are just one character long
+                if i <= new_idx {
+                    //in case of numbers which are just one character long
                     //if idx changed, the parsing was succesfull
                     println!("token found: {:?}", &token_space);
                     parsed_tokens.push(token_space.clone());

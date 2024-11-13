@@ -1,11 +1,12 @@
+pub mod handler;
+pub mod parser;
 pub mod tokenizer;
 pub mod tokens;
-pub mod parser;
+use std::{io, thread};
 use tokenizer::*;
-use std::io;
-
 
 pub fn read_command_loop() {
+    
     let mut command = String::with_capacity(128);
     let mut input = String::with_capacity(128); //memory is enough for shorter commands
     loop {
@@ -22,11 +23,12 @@ pub fn read_command_loop() {
             continue;
         }
 
-
+        handler::infer_op(&tokens);
 
 
 
         command.clear();
         input.clear();
     }
+
 }

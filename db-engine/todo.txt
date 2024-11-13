@@ -1,1 +1,4 @@
-1. 
+1. test create database and create table checkerfunctions
+2. implement insert checker function
+3. implement drop
+4. write a database engine implementation with saving possibility

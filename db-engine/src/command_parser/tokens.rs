@@ -3,17 +3,21 @@
 pub enum TypeNotation {
     INT,
     BIGINT,
+    SMALLINT,
     TINYINT,
+
     FLOAT,
     DOUBLE,
+
     BOOL,
+
     CHAR,
     VARCHAR,
     TEXT,
 
-    DATE, //year, month, day
-    TIME, //hours, minutes, seconds
-    DATETIME, //year-month-day hours:minutes:seconds
+    DATE,      //year, month, day
+    TIME,      //hours, minutes, seconds
+    DATETIME,  //year-month-day hours:minutes:seconds
     TIMESTAMP, //same as datetime but stores everything as UTC0 (so time zone has to be specified upon saving I guess?)
 }
 
@@ -55,6 +59,7 @@ pub enum Token {
     NO_BACKTICK_NAME_UNIT(SWrap), //fields upon creation
 
     NAME_UNIT(SWrap),
+
     STRING_VALUE(SWrap),
     INT_VALUE(i64),
     BOOL_VALUE(bool),
@@ -112,10 +117,8 @@ pub enum Token {
     UNIQUE,
     AUTO_INCREMENT,
     DEFAULT,
-    // CHECK,
+    CHECK,
     // CURRENT_TIMESTAMP,
-
-
     CONSTRAINT,
 
     FOREIGN,
