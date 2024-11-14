@@ -1,5 +1,6 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+mod json_parser;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ParamDtype {
@@ -163,11 +164,11 @@ impl RequestHandler {
         if &endpoint_str.to_lowercase()[idx..idx+3] == "int"{
             return Ok((idx+3, ParamDtype::int));
         }
-        else if &endpoint_str.to_lowercase()[idx..idx+6] == "string"{
-            return Ok((idx+6, ParamDtype::string));
-        }
         else if &endpoint_str.to_lowercase()[idx..idx+5] == "float"{
             return Ok((idx+5, ParamDtype::float));
+        }
+        else if &endpoint_str.to_lowercase()[idx..idx+6] == "string"{
+            return Ok((idx+6, ParamDtype::string));
         }
         else {
             return Err(ParamParseError::MissingTypeInfo);
@@ -408,8 +409,16 @@ fn get_name(req: Request) -> (String, StatusCode) {
     return (resp, StatusCode::OK);
 }
 
-fn patch_user(req: Request) -> (String, StatusCode) {
+fn post_user(req: Request) -> (String, StatusCode) {
+    let param1 = req.params[0].clone();
+    let param: f64;
+    match param1 {
+        ParamData::float(val) => param = val,
+        _ => return (String::new(), StatusCode::BadRequest),
+    }
 
+    let resp = format!("{{\"float found\":\"{param}\"}}");
+    return (resp, StatusCode::OK);
 }
 
 fn delete_something(req: Request) -> (String, StatusCode) {
@@ -432,6 +441,8 @@ fn main() {
     server.get("/users/:string", get_name);
 
     server.delete("/users/:int", delete_something);
+
+    server.post("/users/:float", post_user);
 
     server.run();
 
