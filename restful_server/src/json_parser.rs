@@ -73,11 +73,11 @@ impl Value {
             println!("number found");
             let mut end_idx = idx + 1;
             let mut sep_found = false;
-            while end_idx < str_len {
+            while idx < str_len {
                 let found_char = input_chars.get(end_idx);
                 println!("current char while num parsing: {found_char:?}");
                 match found_char {
-                    //TODO: fix this
+                    
                     Some(c) => {
                         if c.is_ascii_numeric() {
                             //to nothing here
@@ -85,13 +85,15 @@ impl Value {
                             if sep_found {
                                 return Err(ParseError::NumberFail);
                             }
-                            sep_found = true;
+                            else {
+                                sep_found = true;
+                            }
+                            
                         } else {
                             if sep_found && input_chars[end_idx - 1] == '.' {
                                 return Err(ParseError::NumberFail);
                             } else {
-                                println!("loop ends here.");
-                                // end_idx -= 1;
+                                println!("loop ended here.");
                                 break;
                             }
                         }
@@ -107,9 +109,10 @@ impl Value {
                     }
                 }
             }
-            let num_str: String = input_chars[idx..end_idx-1].iter().collect();
+            let num_str: String = input_chars[idx..end_idx].iter().collect();
             let parsing_op = num_str.parse::<f64>();
             if let Ok(num) = parsing_op {
+                println!("Exiting function with number parsed: {num:?}");
                 return Ok((Value::Number(num), end_idx));
             } else {
                 return Err(ParseError::NumberFail);
@@ -137,7 +140,6 @@ impl Value {
 
             while end_idx < str_len {
                 match input_chars.get(end_idx) {
-                    Some(']') => {println!("End of array. returning...");return Ok((Value::Array(arr), end_idx))}, //for the first iteration
                     Some(_) => {
                         (current_val, end_idx) =
                             Value::parse_js_object(input_chars, str_len, end_idx)?
@@ -146,15 +148,23 @@ impl Value {
                 }
                 //after this either the end of array ([) or the separator (,) comes
                 match input_chars.get(end_idx) {
-                    Some(']') | Some(',') => {
+                    Some(',') => {
                         arr.push(current_val);
                         end_idx += 1;
-                        // println!("array ended");
+                        // continue;
+                        // 
+                    }
+                    Some(']') => {
+                        arr.push(current_val);
+                        end_idx += 1;
+                        println!("array ended");
+                        break;
                     }
                     _ => return Err(ParseError::ArrayFail),
                 }
             }
 
+            println!("Exiting array {arr:?}");
             Ok((Value::Array(arr), end_idx))
         } else if input_chars[idx] == '{' {
             println!("found object opening");
