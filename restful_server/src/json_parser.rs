@@ -46,13 +46,17 @@ impl Value {
     fn parse_js_object(
         input_chars: &Vec<char>,
         str_len: usize,
-        idx: usize,
+        mut idx: usize,
     ) -> Result<(Value, usize), ParseError> {
         //checked here once, so no overflow can happen anyway
         if idx >= str_len {
             return Err(ParseError::AbruptEnd);
         }
-        let current_char = input_chars[idx];
+        let mut current_char = input_chars[idx];
+        while current_char == ' ' || current_char == '\t' || current_char == '\r' || current_char == '\n' && idx < str_len{
+            idx += 1;
+            current_char = input_chars[idx];
+        }
         if idx + 4 <= str_len && &input_chars[idx..idx + 4] == "null".chars().collect::<Vec<char>>()
         {
             println!("null value found");
@@ -147,6 +151,11 @@ impl Value {
                     None => return Err(ParseError::AbruptEnd),
                 }
                 //after this either the end of array ([) or the separator (,) comes
+                let mut current_char = input_chars[end_idx];
+                while current_char == ' ' || current_char == '\t' || current_char == '\r' || current_char == '\n' && end_idx < str_len{
+                    end_idx += 1;
+                    current_char = input_chars[end_idx];
+                }
                 match input_chars.get(end_idx) {
                     Some(',') => {
                         arr.push(current_val);
@@ -186,6 +195,13 @@ impl Value {
                 } else {
                     return Err(ParseError::ObjectFail); //nothing else can be a key, only
                 }
+
+                let mut current_char = input_chars[end_idx];
+                while current_char == ' ' || current_char == '\t' || current_char == '\r' || current_char == '\n' && end_idx < str_len{
+                    end_idx += 1;
+                    current_char = input_chars[end_idx];
+                }
+
                 match input_chars.get(end_idx) {
                     Some(':') => end_idx += 1,
                     _ => return Err(ParseError::ObjectFail), //a colon must be after a key, since that separates key-value pairs
@@ -193,11 +209,17 @@ impl Value {
                 let current_value: Value;
                 (current_value, end_idx) = Value::parse_js_object(input_chars, str_len, end_idx)?;
 
+                let mut current_char = input_chars[end_idx];
+                while current_char == ' ' || current_char == '\t' || current_char == '\r' || current_char == '\n' && end_idx < str_len{
+                    end_idx += 1;
+                    current_char = input_chars[end_idx];
+                }
+
                 match input_chars.get(end_idx) {
                     Some(',') => end_idx += 1,
                     Some('}') => (),
                     Some(other_char) => {
-                        eprintln!("expected character: ',' OR '}}', found character: {other_char}");
+                        eprintln!("expected character: ',' OR '}}', found character: {other_char:?}");
                         return Err(ParseError::ObjectFail)}, //a comma must come after a value
                     _ => {eprintln!("No character found.");return Err(ParseError::ObjectFail)}, //a comma must come after a value
                 }
@@ -330,8 +352,8 @@ mod tests {
         ]);
         assert_eq!(
             Ok(example_obj3),
-            Value::from_str("{\"mynum\":6,\"myval\":\"hi\",\"my_arr\":[\"bruh\",4.5]}")
-        );
+            Value::from_str("{\"mynum\":6,\"myval\":\"hi\" ,\"my_arr\":[\"bruh\",4.5]}")
+        );//meow yipppeeee (i love csabi!!!!!!!!!!)
     }
 
 }
