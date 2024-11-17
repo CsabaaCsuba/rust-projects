@@ -187,7 +187,7 @@ impl Value {
                 let key_str: String;
                 (current_key, end_idx) = match input_chars.get(end_idx) {
                     Some('}') => return Ok((Value::Object(arr), end_idx)),
-                    Some(char) => Value::parse_js_object(input_chars, str_len, end_idx)?,
+                    Some(_) => Value::parse_js_object(input_chars, str_len, end_idx)?,
                     None => return Err(ParseError::AbruptEnd),
                 };
                 if let Value::String(string_val) = current_key {
@@ -353,7 +353,7 @@ mod tests {
         assert_eq!(
             Ok(example_obj3),
             Value::from_str("{\"mynum\":6,\"myval\":\"hi\" ,\"my_arr\":[\"bruh\",4.5]}")
-        );//meow yipppeeee (i love csabi!!!!!!!!!!)
+        );//meow yipppeeee (i love csabi!!!!!!!!!!)        
     }
 
 }
