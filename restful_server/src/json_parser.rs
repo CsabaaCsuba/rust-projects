@@ -186,7 +186,7 @@ impl Value {
                 let current_key: Value;
                 let key_str: String;
                 (current_key, end_idx) = match input_chars.get(end_idx) {
-                    Some('}') => return Ok((Value::Object(arr), end_idx)),
+                    Some('}') => return Ok((Value::Object(arr), end_idx+1)), //increment this so if a function called it, it can parse the next character
                     Some(_) => Value::parse_js_object(input_chars, str_len, end_idx)?,
                     None => return Err(ParseError::AbruptEnd),
                 };
@@ -353,7 +353,11 @@ mod tests {
         assert_eq!(
             Ok(example_obj3),
             Value::from_str("{\"mynum\":6,\"myval\":\"hi\" ,\"my_arr\":[\"bruh\",4.5]}")
-        );//meow yipppeeee (i love csabi!!!!!!!!!!)        
+        );//meow yipppeeee (i love csabi!!!!!!!!!!)      
+
+        let val = Value::from_str(main_str);
+        println!("{:?}", Value::from_str(main_str));
+        assert_eq!(val, Ok(Value::Null));
     }
 
 }
