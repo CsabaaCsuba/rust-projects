@@ -5,7 +5,7 @@
 use mysql::*;
 use mysql::prelude::*;
 
-
+#[macro_export]
 macro_rules! table {
     (
         $table_name:ident
@@ -71,6 +71,7 @@ macro_rules! table {
         Constraint::Default(table!(@default_value $val))
     };
     (@constraint PRIMARY_KEY) => { Constraint::PrimaryKey };
+    (@constraint AUTO_INCREMENT) => { Constraint::AutoIncrement };
     (@constraint FOREIGN_KEY($table:expr, $field:expr)) => {
         Constraint::ForeignKey { table: $table.to_string(), field: $field.to_string() }
     };
@@ -99,21 +100,8 @@ macro_rules! table {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 #[derive(PartialEq, Clone, Debug)]
-enum Type {
+pub enum Type {
     TINYINT,
     SMALLINT,
     MEDIUMINT,
@@ -176,16 +164,17 @@ impl ToString for Type {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-enum Constraint {
+pub enum Constraint {
     NotNull,
     Unique,
     Default(DefaultValue),
     PrimaryKey,
     ForeignKey { table: String, field: String },
+    AutoIncrement,
 }
 
-impl ToString for Constraint {
-    fn to_string(&self) -> String {
+impl Constraint {
+    pub fn to_string(&self) -> String {
         match self {
             Constraint::NotNull => "NOT NULL".to_string(),
             Constraint::Unique => "UNIQUE".to_string(),
@@ -194,19 +183,20 @@ impl ToString for Constraint {
             Constraint::ForeignKey { table, field } => {
                 format!("REFERENCES {}({})", table, field)
             },
+            Constraint::AutoIncrement => "AUTO_INCREMENT".to_string(),
         }
     }
 }
 
 #[derive(PartialEq, Clone, Debug)]
-enum DefaultValue {
+pub enum DefaultValue {
     String(String),
     Int(i64),
     Float(f64),
 }
 
-impl ToString for DefaultValue {
-    fn to_string(&self) -> String {
+impl DefaultValue {
+    pub fn to_string(&self) -> String {
         match self {
             DefaultValue::String(val) => format!("'{}'", val),  // Strings are quoted
             DefaultValue::Int(val) => val.to_string(),
@@ -216,23 +206,23 @@ impl ToString for DefaultValue {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-struct Field {
-    field_name: String,
-    field_type: Type,
-    constraints: Vec<Constraint>,
+pub struct Field {
+    pub field_name: String,
+    pub field_type: Type,
+    pub constraints: Vec<Constraint>,
 }
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Table {
-    name: String,
-    fields: Vec<Field>,
+    pub name: String,
+    pub fields: Vec<Field>,
 }
 
 pub struct DBConnector {
-    tables: Vec<Table>,
-    db_name: String,
-    pool: Pool,
-    connection: PooledConn,
+    pub tables: Vec<Table>,
+    pub db_name: String,
+    pub pool: Pool,
+    pub connection: PooledConn,
 }
 
 impl DBConnector {
@@ -248,19 +238,59 @@ impl DBConnector {
     
         Ok(DBConnector{tables: vec![], db_name: db_name.to_string(), pool: init_pool, connection: init_conn})
     }
-    // pub fn query(&mut self, command: impl AsRef<str>) -> Result<(), mysql::Error>{
-    //     let query_result = self.connection.query(command)?;
+    pub fn describe(&mut self, table_name: &str) -> Result<(), mysql::Error> {
 
+        // Query the `information_schema.COLUMNS` for the given table
+        let result: Vec<Row> = self.connection.exec(
+            "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT
+            FROM information_schema.COLUMNS
+            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?",
+            (&self.db_name, table_name),
+        )?;
 
-    //     Ok(())
-    // }
+        // Print column metadata
+        for row in result {
+            let column_name: String = row.get("COLUMN_NAME").unwrap_or_default();
+            let data_type: String = row.get("DATA_TYPE").unwrap_or_default();
+            let is_nullable: String = row.get("IS_NULLABLE").unwrap_or_default();
+            let column_key: String = row.get("COLUMN_KEY").unwrap_or_default();
+            let column_default: Option<String> = row.get("COLUMN_DEFAULT");
+
+            println!(
+                "Column: {}, Data Type: {}, Nullable: {}, Key: {}, Default: {:?}",
+                column_name, data_type, is_nullable, column_key, column_default
+            );
+        }
+
+        Ok(())
+    }
     pub fn add_table(&mut self, table: Table){
         let mut query = format!("CREATE TABLE {} (", table.name);
 
-        for field in &table.fields {
-            query += &format!("{} {} ", &field.field_name, &field.field_type.to_string());
+        //todo: check if table exists
+        
 
+        for (i, field) in table.fields.iter().enumerate() {
+            query += &format!("{} {}", &field.field_name, &field.field_type.to_string());
+
+            if !field.constraints.is_empty() {
+                let constraints: Vec<String> = field
+                    .constraints
+                    .iter()
+                    .map(|constraint| constraint.to_string())
+                    .collect();
+                query += &format!(" {}", constraints.join(" "));
+            }
+
+            if i < table.fields.len() - 1 {
+                query += ", ";
+            }
         }
+        query += ");";
+        println!("generated query: {query}");
+
+        let _ = self.connection.query_drop(&query);
+
     }
 }
 
