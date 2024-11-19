@@ -1,5 +1,7 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+
+use orm::DBConnector;
 mod json_parser;
 mod orm;
 
@@ -441,6 +443,10 @@ fn delete_something(req: Request) -> (String, StatusCode) {
 
 fn main() {
     let mut server = Server::new("127.0.0.1:8080");
+
+    let db = DBConnector::new("root", "", "localhost", 3306, "mylittledb").expect("creating database failed");
+
+    
 
     server.get("/users/:string", get_name);
 

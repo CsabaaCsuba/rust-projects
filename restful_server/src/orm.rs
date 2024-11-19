@@ -2,25 +2,33 @@
 
 //then write a macro called !table, which will generate a vector of these values
 
+use mysql::*;
+use mysql::prelude::*;
+
+
 macro_rules! table {
     (
-        $( // Match each field
+        $table_name:ident
+        $( 
             $field_name:ident $field_type:ident $(($($args:expr),*))? $( $constraint:ident $(($($cargs:expr),*))? )*
         );* $(;)? 
     ) => {
-        vec![
-            $(
-                Field {
-                    field_name: stringify!($field_name).to_string(),
-                    field_type: table!(@type $field_type $(($($args),*))?),
-                    constraints: vec![
-                        $(
-                            table!(@constraint $constraint $(($($cargs),*))?)
-                        ),*
-                    ],
-                }
-            ),*
-        ]
+        Table {
+            name: stringify!($table_name).to_string(),
+            fields: vec![ 
+                $( 
+                    Field {
+                        field_name: stringify!($field_name).to_string(),
+                        field_type: table!(@type $field_type $(($($args),*))?),
+                        constraints: vec![ 
+                            $( 
+                                table!(@constraint $constraint $(($($cargs),*))?) 
+                            ),*
+                        ],
+                    }
+                ),*
+            ]
+        }
     };
 
     // Internal matcher to map shorthand to Type variants
@@ -32,8 +40,6 @@ macro_rules! table {
     (@type FLOAT) => { Type::FLOAT };
     (@type DOUBLE) => { Type::DOUBLE };
     (@type DECIMAL($p:expr, $s:expr)) => { Type::DECIMAL($p, $s) };
-
-    (@type BOOL) => { Type::BOOL };
 
     (@type DATE) => { Type::DATE };
     (@type DATETIME) => { Type::DATETIME };
@@ -54,15 +60,69 @@ macro_rules! table {
     (@type ENUM($($value:expr),*)) => { Type::ENUM(vec![$(String::from($value)),*]) };
     (@type SET($($value:expr),*)) => { Type::SET(vec![$(String::from($value)),*]) };
 
+    // Added back BOOL type variant
+    (@type BOOL) => { Type::BOOL };
+
     // Internal matcher to map shorthand constraints
     (@constraint NOT_NULL) => { Constraint::NotNull };
     (@constraint UNIQUE) => { Constraint::Unique };
-    (@constraint DEFAULT($val:expr)) => { Constraint::Default($val.to_string()) };
+    // Adjusted to infer the type and create a DefaultValue variant
+    (@constraint DEFAULT($val:expr)) => {
+        Constraint::Default(table!(@default_value $val))
+    };
     (@constraint PRIMARY_KEY) => { Constraint::PrimaryKey };
     (@constraint FOREIGN_KEY($table:expr, $field:expr)) => {
         Constraint::ForeignKey { table: $table.to_string(), field: $field.to_string() }
     };
+
+    // Handle TRUE and FALSE as custom tokens for DefaultValue::Int(1) and DefaultValue::Int(0)
+    (@default_value true) => { DefaultValue::Int(1) };
+    (@default_value false) => { DefaultValue::Int(0) };
+
+    // Internal matcher to infer the type of DefaultValue
+    // Special handling for bool, to avoid treating it as a numeric type
+    (@default_value $val:expr) => {
+        if let Some(val) = table!(@as_true $val) {
+            DefaultValue::Int(1)
+        }
+        else if let Some(val) = table!(@as_false $val) {
+            DefaultValue::Int(0)
+        }
+        else if let Some(val) = table!(@as_int $val) {
+            DefaultValue::Int(val)
+        } else if let Some(val) = table!(@as_float $val) {
+            DefaultValue::Float(val)
+        } else {
+            DefaultValue::String($val.to_string())
+        }
+    };
+
+    // Matchers to try to convert the value to specific types
+    // Handle boolean explicitly
+    (@as_true $val:expr) => {
+        if $val == true { Some(1) } else { None }
+    };
+    (@as_false $val:expr) => {
+        if $val == false { Some(0) } else { None }
+    };
+    (@as_int $val:expr) => {
+        if let Ok(val) = ($val as i64).to_string().parse::<i64>() { Some(val) } else { None }
+    };
+    // Handle float parsing explicitly
+    (@as_float $val:expr) => {
+        if let Ok(val) = ($val as f64).to_string().parse::<f64>() { Some(val) } else { None }
+    };
 }
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -101,13 +161,74 @@ enum Type {
     SET(Vec<String>)
 }
 
+impl ToString for Type {
+    fn to_string(&self) -> String {
+        match self {
+            Type::TINYINT => "TINYINT".to_string(),
+            Type::SMALLINT => "SMALLINT".to_string(),
+            Type::MEDIUMINT => "MEDIUMINT".to_string(),
+            Type::INT => "INT".to_string(),
+            Type::BIGINT => "BIGINT".to_string(),
+            Type::FLOAT => "FLOAT".to_string(),
+            Type::DOUBLE => "DOUBLE".to_string(),
+            Type::DECIMAL(p, s) => format!("DECIMAL({}, {})", p, s),
+            Type::BOOL => "BOOL".to_string(),
+            Type::DATE => "DATE".to_string(),
+            Type::DATETIME => "DATETIME".to_string(),
+            Type::TIMESTAMP => "TIMESTAMP".to_string(),
+            Type::TIME => "TIME".to_string(),
+            Type::YEAR => "YEAR".to_string(),
+            Type::CHAR(len) => format!("CHAR({})", len),
+            Type::VARCHAR(len) => format!("VARCHAR({})", len),
+            Type::TINYTEXT(len) => format!("TINYTEXT({})", len),
+            Type::TEXT(len) => format!("TEXT({})", len),
+            Type::LONGTEXT(len) => format!("LONGTEXT({})", len),
+            Type::BINARY => "BINARY".to_string(),
+            Type::VARBINARY => "VARBINARY".to_string(),
+            Type::ENUM(values) => format!("ENUM({})", values.join(", ")),
+            Type::SET(values) => format!("SET({})", values.join(", ")),
+        }
+    }
+}
+
 #[derive(PartialEq, Clone, Debug)]
 enum Constraint {
     NotNull,
     Unique,
-    Default(String),
+    Default(DefaultValue),
     PrimaryKey,
     ForeignKey { table: String, field: String },
+}
+
+impl ToString for Constraint {
+    fn to_string(&self) -> String {
+        match self {
+            Constraint::NotNull => "NOT NULL".to_string(),
+            Constraint::Unique => "UNIQUE".to_string(),
+            Constraint::Default(value) => format!("DEFAULT {}", value.to_string()),
+            Constraint::PrimaryKey => "PRIMARY KEY".to_string(),
+            Constraint::ForeignKey { table, field } => {
+                format!("REFERENCES {}({})", table, field)
+            },
+        }
+    }
+}
+
+#[derive(PartialEq, Clone, Debug)]
+enum DefaultValue {
+    String(String),
+    Int(i64),
+    Float(f64),
+}
+
+impl ToString for DefaultValue {
+    fn to_string(&self) -> String {
+        match self {
+            DefaultValue::String(val) => format!("'{}'", val),  // Strings are quoted
+            DefaultValue::Int(val) => val.to_string(),
+            DefaultValue::Float(val) => val.to_string(),
+        }
+    }
 }
 
 #[derive(PartialEq, Clone, Debug)]
@@ -117,500 +238,323 @@ struct Field {
     constraints: Vec<Constraint>,
 }
 
+#[derive(PartialEq, Clone, Debug)]
+pub struct Table {
+    name: String,
+    fields: Vec<Field>,
+}
+
+pub struct DBConnector {
+    tables: Vec<Table>,
+    db_name: String,
+    pool: Pool,
+    connection: PooledConn,
+}
+
+impl DBConnector {
+    pub fn new(username: &str, password: &str, address: &str, port: usize, db_name: &str) -> Result<Self, mysql::Error> {
+        
+        let init_pool = Pool::new(format!("mysql://{username}:{password}@{address}:{port}").as_str())?;
+        let mut init_conn = init_pool.get_conn()?;
+
+        init_conn.query_drop(format!("CREATE DATABASE IF NOT EXISTS {db_name}"))?;
+
+        init_conn.query_drop(format!("USE {db_name}"))?;
+
+    
+        Ok(DBConnector{tables: vec![], db_name: db_name.to_string(), pool: init_pool, connection: init_conn})
+    }
+    // pub fn query(&mut self, command: impl AsRef<str>) -> Result<(), mysql::Error>{
+    //     let query_result = self.connection.query(command)?;
+
+
+    //     Ok(())
+    // }
+    pub fn add_table(&mut self, table: Table){
+        let mut query = format!("CREATE TABLE {} (", table.name);
+
+        for field in &table.fields {
+            query += &format!("{} {} ", &field.field_name, &field.field_type.to_string());
+
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn field_test1() {
-        let fields = table! {
-            id INT PRIMARY_KEY NOT_NULL;
-            name VARCHAR(255) NOT_NULL UNIQUE;
-            is_active BOOL DEFAULT("1");
-            salary DECIMAL(10, 2) DEFAULT("0.00");
-            department_id INT; // No constraints
+    fn test_tinyint() {
+        let table = table! {
+            TestTable
+            id TINYINT;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "id".to_string(),
-                field_type: Type::INT,
-                constraints: vec![Constraint::PrimaryKey, Constraint::NotNull],
-            },
-            Field {
-                field_name: "name".to_string(),
-                field_type: Type::VARCHAR(255),
-                constraints: vec![Constraint::NotNull, Constraint::Unique],
-            },
-            Field {
-                field_name: "is_active".to_string(),
-                field_type: Type::BOOL,
-                constraints: vec![Constraint::Default("1".to_string())],
-            },
-            Field {
-                field_name: "salary".to_string(),
-                field_type: Type::DECIMAL(10, 2),
-                constraints: vec![Constraint::Default("0.00".to_string())],
-            },
-            Field {
-                field_name: "department_id".to_string(),
-                field_type: Type::INT,
-                constraints: vec![], // No constraints
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.name, "TestTable");
+        assert_eq!(table.fields.len(), 1);
+        assert_eq!(table.fields[0].field_name, "id");
+        assert_eq!(table.fields[0].field_type, Type::TINYINT);
+        assert!(table.fields[0].constraints.is_empty());
     }
 
     #[test]
-    fn foreignkey_test() {
-        let fields: Vec<Field> = table! {
-            character_id INT PRIMARY_KEY NOT_NULL;
-            name VARCHAR(100) NOT_NULL UNIQUE;
-            health INT DEFAULT(100);
-            level INT DEFAULT(1);
-            inventory_id INT FOREIGN_KEY("inventory", "character_id");
+    fn test_smallint() {
+        let table = table! {
+            TestTable
+            id SMALLINT;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "character_id".to_string(),
-                field_type: Type::INT,
-                constraints: vec![Constraint::PrimaryKey, Constraint::NotNull],
-            },
-            Field {
-                field_name: "name".to_string(),
-                field_type: Type::VARCHAR(100),
-                constraints: vec![Constraint::NotNull, Constraint::Unique],
-            },
-            Field {
-                field_name: "health".to_string(),
-                field_type: Type::INT,
-                constraints: vec![Constraint::Default("100".to_string())],
-            },
-            Field {
-                field_name: "level".to_string(),
-                field_type: Type::INT,
-                constraints: vec![Constraint::Default("1".to_string())],
-            },
-            Field {
-                field_name: "inventory_id".to_string(),
-                field_type: Type::INT,
-                constraints: vec![
-                    Constraint::ForeignKey {
-                        table: "inventory".to_string(),
-                        field: "character_id".to_string(),
-                    }
-                ],
-            },
-        ];
-
-        assert_eq!(fields, expected);
-    }
-
-
-        #[test]
-    fn tinyint_test() {
-        let fields: Vec<Field> = table! {
-            id TINYINT PRIMARY_KEY NOT_NULL;
-        };
-
-        let expected = vec![
-            Field {
-                field_name: "id".to_string(),
-                field_type: Type::TINYINT,
-                constraints: vec![Constraint::PrimaryKey, Constraint::NotNull],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::SMALLINT);
     }
 
     #[test]
-    fn smallint_test() {
-        let fields: Vec<Field> = table! {
-            id SMALLINT PRIMARY_KEY NOT_NULL;
+    fn test_mediumint() {
+        let table = table! {
+            TestTable
+            id MEDIUMINT;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "id".to_string(),
-                field_type: Type::SMALLINT,
-                constraints: vec![Constraint::PrimaryKey, Constraint::NotNull],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::MEDIUMINT);
     }
 
     #[test]
-    fn mediumint_test() {
-        let fields: Vec<Field> = table! {
-            id MEDIUMINT PRIMARY_KEY NOT_NULL;
+    fn test_int() {
+        let table = table! {
+            TestTable
+            id INT;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "id".to_string(),
-                field_type: Type::MEDIUMINT,
-                constraints: vec![Constraint::PrimaryKey, Constraint::NotNull],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::INT);
     }
 
     #[test]
-    fn int_test() {
-        let fields: Vec<Field> = table! {
-            id INT PRIMARY_KEY NOT_NULL;
+    fn test_bigint() {
+        let table = table! {
+            TestTable
+            id BIGINT;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "id".to_string(),
-                field_type: Type::INT,
-                constraints: vec![Constraint::PrimaryKey, Constraint::NotNull],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::BIGINT);
     }
 
     #[test]
-    fn bigint_test() {
-        let fields: Vec<Field> = table! {
-            id BIGINT PRIMARY_KEY NOT_NULL;
+    fn test_float() {
+        let table = table! {
+            TestTable
+            id FLOAT;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "id".to_string(),
-                field_type: Type::BIGINT,
-                constraints: vec![Constraint::PrimaryKey, Constraint::NotNull],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::FLOAT);
     }
 
     #[test]
-    fn float_test() {
-        let fields: Vec<Field> = table! {
-            price FLOAT DEFAULT(0.0);
+    fn test_double() {
+        let table = table! {
+            TestTable
+            id DOUBLE;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "price".to_string(),
-                field_type: Type::FLOAT,
-                constraints: vec![Constraint::Default("0".to_string())],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::DOUBLE);
     }
 
     #[test]
-    fn double_test() {
-        let fields: Vec<Field> = table! {
-            weight DOUBLE DEFAULT(0.0);
+    fn test_decimal() {
+        let table = table! {
+            TestTable
+            id DECIMAL(10, 2);
         };
-
-        let expected = vec![
-            Field {
-                field_name: "weight".to_string(),
-                field_type: Type::DOUBLE,
-                constraints: vec![Constraint::Default("0".to_string())],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::DECIMAL(10, 2));
     }
 
     #[test]
-    fn decimal_test() {
-        let fields: Vec<Field> = table! {
-            amount DECIMAL(10, 2) DEFAULT("0.00");
+    fn test_bool() {
+        let table = table! {
+            TestTable
+            id BOOL;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "amount".to_string(),
-                field_type: Type::DECIMAL(10, 2),
-                constraints: vec![Constraint::Default("0.00".to_string())],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::BOOL);
     }
 
     #[test]
-    fn bool_test() {
-        let fields: Vec<Field> = table! {
-            is_active BOOL DEFAULT("1");
+    fn test_date() {
+        let table = table! {
+            TestTable
+            id DATE;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "is_active".to_string(),
-                field_type: Type::BOOL,
-                constraints: vec![Constraint::Default("1".to_string())],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::DATE);
     }
 
     #[test]
-    fn date_test() {
-        let fields: Vec<Field> = table! {
-            start_date DATE;
+    fn test_datetime() {
+        let table = table! {
+            TestTable
+            id DATETIME;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "start_date".to_string(),
-                field_type: Type::DATE,
-                constraints: vec![],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::DATETIME);
     }
 
     #[test]
-    fn datetime_test() {
-        let fields: Vec<Field> = table! {
-            created_at DATETIME;
+    fn test_timestamp() {
+        let table = table! {
+            TestTable
+            id TIMESTAMP;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "created_at".to_string(),
-                field_type: Type::DATETIME,
-                constraints: vec![],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::TIMESTAMP);
     }
 
     #[test]
-    fn timestamp_test() {
-        let fields: Vec<Field> = table! {
-            updated_at TIMESTAMP;
+    fn test_time() {
+        let table = table! {
+            TestTable
+            id TIME;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "updated_at".to_string(),
-                field_type: Type::TIMESTAMP,
-                constraints: vec![],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::TIME);
     }
 
     #[test]
-    fn time_test() {
-        let fields: Vec<Field> = table! {
-            duration TIME;
+    fn test_year() {
+        let table = table! {
+            TestTable
+            id YEAR;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "duration".to_string(),
-                field_type: Type::TIME,
-                constraints: vec![],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::YEAR);
     }
 
     #[test]
-    fn year_test() {
-        let fields: Vec<Field> = table! {
-            birth_year YEAR;
+    fn test_char() {
+        let table = table! {
+            TestTable
+            id CHAR(255);
         };
-
-        let expected = vec![
-            Field {
-                field_name: "birth_year".to_string(),
-                field_type: Type::YEAR,
-                constraints: vec![],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::CHAR(255));
     }
 
     #[test]
-    fn char_test() {
-        let fields: Vec<Field> = table! {
-            code CHAR(5);
+    fn test_varchar() {
+        let table = table! {
+            TestTable
+            id VARCHAR(255);
         };
-
-        let expected = vec![
-            Field {
-                field_name: "code".to_string(),
-                field_type: Type::CHAR(5),
-                constraints: vec![],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::VARCHAR(255));
     }
 
     #[test]
-    fn varchar_test() {
-        let fields: Vec<Field> = table! {
-            name VARCHAR(255);
+    fn test_tinytext() {
+        let table = table! {
+            TestTable
+            id TINYTEXT(255);
         };
-
-        let expected = vec![
-            Field {
-                field_name: "name".to_string(),
-                field_type: Type::VARCHAR(255),
-                constraints: vec![],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::TINYTEXT(255));
     }
 
     #[test]
-    fn tinytext_test() {
-        let fields: Vec<Field> = table! {
-            description TINYTEXT(100);
+    fn test_text() {
+        let table = table! {
+            TestTable
+            id TEXT(255);
         };
-
-        let expected = vec![
-            Field {
-                field_name: "description".to_string(),
-                field_type: Type::TINYTEXT(100),
-                constraints: vec![],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::TEXT(255));
     }
 
     #[test]
-    fn text_test() {
-        let fields: Vec<Field> = table! {
-            content TEXT(255);
+    fn test_longtext() {
+        let table = table! {
+            TestTable
+            id LONGTEXT(255);
         };
-
-        let expected = vec![
-            Field {
-                field_name: "content".to_string(),
-                field_type: Type::TEXT(255),
-                constraints: vec![],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::LONGTEXT(255));
     }
 
     #[test]
-    fn longtext_test() {
-        let fields: Vec<Field> = table! {
-            bio LONGTEXT(1000);
+    fn test_binary() {
+        let table = table! {
+            TestTable
+            id BINARY;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "bio".to_string(),
-                field_type: Type::LONGTEXT(1000),
-                constraints: vec![],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::BINARY);
     }
 
     #[test]
-    fn binary_test() {
-        let fields: Vec<Field> = table! {
-            data BINARY;
+    fn test_varbinary() {
+        let table = table! {
+            TestTable
+            id VARBINARY;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "data".to_string(),
-                field_type: Type::BINARY,
-                constraints: vec![],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::VARBINARY);
     }
 
     #[test]
-    fn varbinary_test() {
-        let fields: Vec<Field> = table! {
-            file VARBINARY;
+    fn test_enum() {
+        let table = table! {
+            TestTable
+            id ENUM("value1", "value2");
         };
-
-        let expected = vec![
-            Field {
-                field_name: "file".to_string(),
-                field_type: Type::VARBINARY,
-                constraints: vec![],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::ENUM(vec!["value1".to_string(), "value2".to_string()]));
     }
 
     #[test]
-    fn enum_test() {
-        let fields: Vec<Field> = table! {
-            status ENUM("Active", "Inactive", "Pending");
+    fn test_set() {
+        let table = table! {
+            TestTable
+            id SET("option1", "option2");
         };
-
-        let expected = vec![
-            Field {
-                field_name: "status".to_string(),
-                field_type: Type::ENUM(vec![
-                    String::from("Active"),
-                    String::from("Inactive"),
-                    String::from("Pending"),
-                ]),
-                constraints: vec![],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].field_type, Type::SET(vec!["option1".to_string(), "option2".to_string()]));
     }
 
     #[test]
-    fn set_test() {
-        let fields: Vec<Field> = table! {
-            items SET("Sword", "Shield", "Potion", "Armor");
+    fn test_not_null_constraint() {
+        let table = table! {
+            TestTable
+            id INT NOT_NULL;
         };
-
-        let expected = vec![
-            Field {
-                field_name: "items".to_string(),
-                field_type: Type::SET(vec![
-                    String::from("Sword"),
-                    String::from("Shield"),
-                    String::from("Potion"),
-                    String::from("Armor"),
-                ]),
-                constraints: vec![],
-            },
-        ];
-
-        assert_eq!(fields, expected);
+        assert_eq!(table.fields[0].constraints, vec![Constraint::NotNull]);
     }
 
+    #[test]
+    fn test_unique_constraint() {
+        let table = table! {
+            TestTable
+            id INT UNIQUE;
+        };
+        assert_eq!(table.fields[0].constraints, vec![Constraint::Unique]);
+    }
 
+    #[test]
+    fn test_default_constraint() {
+        let table = table! {
+            TestTable
+            id INT DEFAULT(42);
+        };
+        assert_eq!(table.fields[0].constraints, vec![Constraint::Default(DefaultValue::Int(42))]);
+    }
 
-    
+    #[test]
+    fn test_primary_key_constraint() {
+        let table = table! {
+            TestTable
+            id INT PRIMARY_KEY;
+        };
+        assert_eq!(table.fields[0].constraints, vec![Constraint::PrimaryKey]);
+    }
+
+    #[test]
+    fn test_foreign_key_constraint() {
+        let table = table! {
+            TestTable
+            id INT FOREIGN_KEY("OtherTable", "other_field");
+        };
+        assert_eq!(table.fields[0].constraints, vec![Constraint::ForeignKey { table: "OtherTable".to_string(), field: "other_field".to_string() }]);
+    }
+
+    // Combination of constraints
+    #[test]
+    fn test_combined_constraints() {
+        let table = table! {
+            TestTable
+            id INT NOT_NULL UNIQUE DEFAULT(42) PRIMARY_KEY;
+            is_good BOOL DEFAULT(true);
+        };
+        assert_eq!(table.fields[0].constraints.len(), 4);
+        assert_eq!(table.fields[0].constraints[0], Constraint::NotNull);
+        assert_eq!(table.fields[0].constraints[1], Constraint::Unique);
+        assert_eq!(table.fields[0].constraints[2], Constraint::Default(DefaultValue::Int(42)));
+        assert_eq!(table.fields[0].constraints[3], Constraint::PrimaryKey);
+
+        assert_eq!(table.fields[1].constraints[0], Constraint::Default(DefaultValue::Int(1)));
+    }
 }
