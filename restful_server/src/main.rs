@@ -1,11 +1,15 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
+mod own_connector;
+
 // use orm::DBConnector;
 mod orm;
 use crate::orm::{Constraint, Type, Table, Field, DBConnector};
 
 mod json_parser;
+
+
 
 #[derive(Debug, Clone, Copy)]
 pub enum ParamDtype {
@@ -444,6 +448,8 @@ fn delete_something(req: Request) -> (String, StatusCode) {
 }
 
 fn main() {
+    let _ = own_connector::test_raw_conn();
+    
     let mut server = Server::new("127.0.0.1:8080");
 
     let mut db = DBConnector::new("root", "", "localhost", 3306, "mylittledb").expect("creating database failed");
@@ -456,7 +462,7 @@ fn main() {
         password CHAR(255);
     ));
 
-    let _ = db.describe("User");
+    // let _ = db.describe("User");
 
     server.get("/users/:string", get_name);
 
@@ -465,4 +471,6 @@ fn main() {
     server.post("/users/:float", post_user);
 
     server.run();
+
+    
 }
