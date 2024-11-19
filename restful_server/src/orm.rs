@@ -75,20 +75,10 @@ macro_rules! table {
         Constraint::ForeignKey { table: $table.to_string(), field: $field.to_string() }
     };
 
-    // Handle TRUE and FALSE as custom tokens for DefaultValue::Int(1) and DefaultValue::Int(0)
-    (@default_value true) => { DefaultValue::Int(1) };
-    (@default_value false) => { DefaultValue::Int(0) };
-
     // Internal matcher to infer the type of DefaultValue
     // Special handling for bool, to avoid treating it as a numeric type
     (@default_value $val:expr) => {
-        if let Some(val) = table!(@as_true $val) {
-            DefaultValue::Int(1)
-        }
-        else if let Some(val) = table!(@as_false $val) {
-            DefaultValue::Int(0)
-        }
-        else if let Some(val) = table!(@as_int $val) {
+        if let Some(val) = table!(@as_int $val) {
             DefaultValue::Int(val)
         } else if let Some(val) = table!(@as_float $val) {
             DefaultValue::Float(val)
@@ -99,12 +89,6 @@ macro_rules! table {
 
     // Matchers to try to convert the value to specific types
     // Handle boolean explicitly
-    (@as_true $val:expr) => {
-        if $val == true { Some(1) } else { None }
-    };
-    (@as_false $val:expr) => {
-        if $val == false { Some(0) } else { None }
-    };
     (@as_int $val:expr) => {
         if let Ok(val) = ($val as i64).to_string().parse::<i64>() { Some(val) } else { None }
     };
@@ -547,7 +531,7 @@ mod tests {
         let table = table! {
             TestTable
             id INT NOT_NULL UNIQUE DEFAULT(42) PRIMARY_KEY;
-            is_good BOOL DEFAULT(true);
+            is_good BOOL DEFAULT(1);
         };
         assert_eq!(table.fields[0].constraints.len(), 4);
         assert_eq!(table.fields[0].constraints[0], Constraint::NotNull);
