@@ -5,7 +5,7 @@ mod own_connector;
 
 // use orm::DBConnector;
 mod orm;
-use crate::orm::{Constraint, Type, Table, Field, DBConnector};
+use crate::orm::{Constraint, Type, Table, Field, DBConnector, DefaultValue};
 
 mod json_parser;
 
@@ -162,9 +162,9 @@ impl RequestHandler {
         endpoint: &str,
         handler_fn: fn(Request) -> (String, StatusCode),
     ) -> Result<Self, ParamParseError> {
-        println!("endpoint in new function: {endpoint}");
+        // println!("endpoint in new function: {endpoint}");
         let parsed_params = RequestHandler::parse_params(&endpoint)?;
-        println!("Parsed param types: {parsed_params:?}");
+        // println!("Parsed param types: {parsed_params:?}");
         return Ok(RequestHandler {
             used_method: method,
             endpoint_format: endpoint.to_string(),
@@ -187,20 +187,20 @@ impl RequestHandler {
         let mut params = Vec::new();
         let mut i: usize = 0;
         let characters: Vec<char> = endpoint_str.chars().collect();
-        println!("characters casted as .chars: {characters:?}");
-        println!("{:?}", characters[1]);
+        // println!("characters casted as .chars: {characters:?}");
+        // println!("{:?}", characters[1]);
         while i < characters.len() {
-            println!("Current char: {:?} at index {}", &characters[i], i);
+            // println!("Current char: {:?} at index {}", &characters[i], i);
             if characters.get(i) == Some(&':') {
-                println!("Found parameter type");
+                // println!("Found parameter type");
                 i += 1;
                 let return_tup = RequestHandler::parse_type(endpoint_str, i)?;
-                println!("parameter type is {:?}", &return_tup.1);
+                // println!("parameter type is {:?}", &return_tup.1);
                 i = return_tup.0;
                 params.push(return_tup.1);
 
                 let next_char = characters.get(i);
-                println!("Next char after param: {next_char:?}");
+                // println!("Next char after param: {next_char:?}");
                 if next_char != Some(&'/') && next_char != None {
                     //after parsing a parameter like :id, only a slash can come (or the end of the string)
 
@@ -224,8 +224,8 @@ impl RequestHandler {
             + idx;
         let substring = &used_str[idx..end_idx];
 
-        println!("needed parameter dtype: {dtype:?}");
-        println!("Current substring: {substring}");
+        // println!("needed parameter dtype: {dtype:?}");
+        // println!("Current substring: {substring}");
 
         match dtype {
             ParamDtype::int => {
@@ -261,16 +261,16 @@ impl RequestHandler {
         while i < req_endpoint.len() {
             if let Some(&char) = right_endpoint.get(i) {
                 if char == ':' {
-                    println!("Encountered parameter notation");
+                    // println!("Encountered parameter notation");
                     if pidx == param_count {
                         //if there is a parameter, but the maximum amount of parameters has been reached
-                        eprintln!("Parameter count reached.");
+                        // eprintln!("Parameter count reached.");
                         return None;
                     }
                     let found_param =
                         RequestHandler::parse_param(request_endpoint, param_vec[pidx], i);
                     if let Some(p) = found_param {
-                        println!("Found parameters' data: {:?}", p.0);
+                        // println!("Found parameters' data: {:?}", p.0);
                         params.push(p.0);
                         i = p.1;
                         pidx += 1;
@@ -284,12 +284,12 @@ impl RequestHandler {
             }
         }
 
-        eprintln!("compared parameters: {params:?}");
+        println!("compared parameters: {params:?}");
         Some(params)
     }
 
     fn compare_request(&self, req: &mut Request) -> bool {
-        println!("found {:?} - needed {:?}", req.method, self.used_method);
+        // println!("found {:?} - needed {:?}", req.method, self.used_method);
         if req.method.clone() != self.used_method {
             return false;
         }
@@ -297,7 +297,7 @@ impl RequestHandler {
             None => return false,
             Some(param_vector) => {
                 req.params = param_vector;
-                println!("Request parameters: {:?}", req.params);
+                // println!("Request parameters: {:?}", req.params);
                 return true;
             }
         }
@@ -347,7 +347,7 @@ impl Server {
             return;
         }
         let request_str = String::from_utf8_lossy(&buffer);
-        println!("received request_str:\n{}\n------------------", request_str);
+        // println!("received request_str:\n{}\n------------------", request_str);
         let mut request = Request::new(&request_str, vec![]);
         //TODO: write the functionality that matches the request with it's requesthandler (if there is one)
         for handler in &self.handlers {
@@ -371,7 +371,7 @@ impl Server {
 
     fn get(&mut self, endpoint: &str, function: fn(Request) -> (String, StatusCode)) {
         //TODO: make this create a request handler and append it to the request handlers
-        println!("found endpoint: {endpoint}");
+        // println!("found endpoint: {endpoint}");
         let handler = RequestHandler::new(method::GET, endpoint, function);
         match handler {
             Ok(h) => self.handlers.push(h),
@@ -448,7 +448,6 @@ fn delete_something(req: Request) -> (String, StatusCode) {
 }
 
 fn main() {
-    let _ = own_connector::test_raw_conn();
     
     let mut server = Server::new("127.0.0.1:8080");
 
@@ -457,12 +456,13 @@ fn main() {
     db.add_table(table!(
         User
         id INT PRIMARY_KEY AUTO_INCREMENT;
+        is_premium BOOL DEFAULT(0);
         username VARCHAR(255) UNIQUE NOT_NULL;
         email VARCHAR(255) UNIQUE NOT_NULL;
         password CHAR(255);
     ));
 
-    // let _ = db.describe("User");
+    let _ = db.describe("User");
 
     server.get("/users/:string", get_name);
 

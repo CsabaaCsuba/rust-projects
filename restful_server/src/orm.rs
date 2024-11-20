@@ -242,25 +242,27 @@ impl DBConnector {
 
         // Query the `information_schema.COLUMNS` for the given table
         let result: Vec<Row> = self.connection.exec(
-            "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT
+            "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_KEY, COALESCE(COLUMN_DEFAULT, 'NULL') AS COLUMN_DEFAULT
             FROM information_schema.COLUMNS
             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?",
             (&self.db_name, table_name),
         )?;
 
+        println!("\n{table_name}:");
         // Print column metadata
         for row in result {
             let column_name: String = row.get("COLUMN_NAME").unwrap_or_default();
             let data_type: String = row.get("DATA_TYPE").unwrap_or_default();
             let is_nullable: String = row.get("IS_NULLABLE").unwrap_or_default();
             let column_key: String = row.get("COLUMN_KEY").unwrap_or_default();
-            let column_default: Option<String> = row.get("COLUMN_DEFAULT");
+            let column_default: String = row.get("COLUMN_DEFAULT").unwrap_or_default();
 
             println!(
                 "Column: {}, Data Type: {}, Nullable: {}, Key: {}, Default: {:?}",
                 column_name, data_type, is_nullable, column_key, column_default
             );
         }
+        println!("\n");
 
         Ok(())
     }
