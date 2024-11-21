@@ -238,7 +238,7 @@ impl DBConnector {
     
         Ok(DBConnector{tables: vec![], db_name: db_name.to_string(), pool: init_pool, connection: init_conn})
     }
-    pub fn describe(&mut self, table_name: &str) -> Result<(), mysql::Error> {
+    pub fn describe(&mut self, table_name: &str) -> Result<Vec<Row>, mysql::Error> {
 
         // Query the `information_schema.COLUMNS` for the given table
         let result: Vec<Row> = self.connection.exec(
@@ -248,51 +248,41 @@ impl DBConnector {
             (&self.db_name, table_name),
         )?;
 
-        println!("\n{table_name}:");
-        // Print column metadata
-        for row in result {
-            let column_name: String = row.get("COLUMN_NAME").unwrap_or_default();
-            let data_type: String = row.get("DATA_TYPE").unwrap_or_default();
-            let is_nullable: String = row.get("IS_NULLABLE").unwrap_or_default();
-            let column_key: String = row.get("COLUMN_KEY").unwrap_or_default();
-            let column_default: String = row.get("COLUMN_DEFAULT").unwrap_or_default();
-
-            println!(
-                "Column: {}, Data Type: {}, Nullable: {}, Key: {}, Default: {:?}",
-                column_name, data_type, is_nullable, column_key, column_default
-            );
-        }
-        println!("\n");
-
-        Ok(())
+        Ok(result)
     }
     pub fn add_table(&mut self, table: Table){
-        let mut query = format!("CREATE TABLE {} (", table.name);
-
         //todo: check if table exists
-        
+        let rows: Vec<Row> = &self.describe(&table.name).expect("table check failed");
+        //if nothing related to the table found, create table
+        if rows.is_empty(){
+            let mut query = format!("CREATE TABLE {} (", table.name);
 
-        for (i, field) in table.fields.iter().enumerate() {
-            query += &format!("{} {}", &field.field_name, &field.field_type.to_string());
+            for (i, field) in table.fields.iter().enumerate() {
+                query += &format!("{} {}", &field.field_name, &field.field_type.to_string());
 
-            if !field.constraints.is_empty() {
-                let constraints: Vec<String> = field
-                    .constraints
-                    .iter()
-                    .map(|constraint| constraint.to_string())
-                    .collect();
-                query += &format!(" {}", constraints.join(" "));
+                if !field.constraints.is_empty() {
+                    let constraints: Vec<String> = field
+                        .constraints
+                        .iter()
+                        .map(|constraint| constraint.to_string())
+                        .collect();
+                    query += &format!(" {}", constraints.join(" "));
+                }
+
+                if i < table.fields.len() - 1 {
+                    query += ", ";
+                }
             }
+            query += ");";
+            println!("generated query: {query}");
 
-            if i < table.fields.len() - 1 {
-                query += ", ";
-            }
+            let _ = self.connection.query_drop(&query);
         }
-        query += ");";
-        println!("generated query: {query}");
-
-        let _ = self.connection.query_drop(&query);
-
+        else {
+            //TODO: modify table
+            
+            
+        }
     }
 }
 
