@@ -1,0 +1,7 @@
+[package]
+name = "notes_app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+restful_server = {path="./restful_server"}

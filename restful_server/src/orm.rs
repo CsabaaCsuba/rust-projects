@@ -252,7 +252,7 @@ impl DBConnector {
     }
     pub fn add_table(&mut self, table: Table){
         //todo: check if table exists
-        let rows: Vec<Row> = &self.describe(&table.name).expect("table check failed");
+        let rows: &Vec<Row> = &self.describe(&table.name).expect("table check failed");
         //if nothing related to the table found, create table
         if rows.is_empty(){
             let mut query = format!("CREATE TABLE {} (", table.name);

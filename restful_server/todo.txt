@@ -1,3 +1,5 @@
 1. refactor whitespace skipper
 2. completely unit-test the json parser
-3. write an Object-relational mapper
+3. write an Object-relational mapper [in progress]
+4. write a database connector
+5. implement a Json serializer

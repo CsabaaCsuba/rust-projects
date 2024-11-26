@@ -1,8 +1,6 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
-mod own_connector;
-
 // use orm::DBConnector;
 mod orm;
 use crate::orm::{Constraint, Type, Table, Field, DBConnector, DefaultValue};
@@ -81,7 +79,7 @@ impl StatusCode {
     }
 }
 
-struct Request {
+pub struct Request {
     method: method,
     endpoint: String,
     params: Vec<ParamData>, //not yet supported
@@ -323,7 +321,7 @@ impl RequestHandler {
     }
 }
 
-struct Server {
+pub struct Server {
     address: String,
     listener: TcpListener,
     handlers: Vec<RequestHandler>,
