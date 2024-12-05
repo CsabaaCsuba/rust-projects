@@ -2,6 +2,22 @@
 
 //then write a macro called !table, which will generate a vector of these values
 
+//example code:
+/*
+let mut db = DBConnector::new("root", "", "localhost", 3306, "mylittledb").expect("creating database failed");
+
+db.add_table(table!(
+    User
+    id INT PRIMARY_KEY AUTO_INCREMENT;
+    is_premium BOOL DEFAULT(0);
+    username VARCHAR(255) UNIQUE NOT_NULL;
+    email VARCHAR(255) UNIQUE NOT_NULL;
+    password CHAR(255);
+));
+
+let _ = db.describe("User");
+*/
+
 use mysql::*;
 use mysql::prelude::*;
 

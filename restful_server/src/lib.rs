@@ -1,13 +1,7 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
-// use orm::DBConnector;
-mod orm;
-use crate::orm::{Constraint, Type, Table, Field, DBConnector, DefaultValue};
-
 mod json_parser;
-
-
 
 #[derive(Debug, Clone, Copy)]
 pub enum ParamDtype {
@@ -90,7 +84,6 @@ pub struct Request {
 impl Request {
     fn infer_method(used_str: &str) -> method {
         let cmp_str = &used_str[0..6].to_uppercase();
-        println!("unparsed method: {cmp_str}");
         match &cmp_str[0..3] {
             "GET" => return method::GET,
             "PUT" => return method::PUT,
@@ -107,7 +100,7 @@ impl Request {
         }
 
         println!("no method found. defaulting to GET.");
-        return method::GET; //if someone sends a SKIBIDI request, it will be interpreted as a GET request
+        return method::GET; //if someone sends any other kind of request, it will be interpreted as a GET request
     }
     fn infer_endpoint(used_str: &str) -> String {
         let mut split_string = used_str.split_whitespace();
@@ -445,28 +438,47 @@ fn delete_something(req: Request) -> (String, StatusCode) {
     return (resp, StatusCode::NoContent);
 }
 
+fn put_something(req: Request) -> (String, StatusCode) {
+    let p1 = req.params[0].clone();
+
+    let param: i64;
+    match p1 {
+        ParamData::int(val) => param = val,
+        _ => return (String::new(), StatusCode::BadRequest),
+    }
+
+    let resp = format!("{{\"updated_item_id\":\"{param}\"}}");
+    return (resp, StatusCode::NoContent);
+}
+
+fn patch_something(req: Request) -> (String, StatusCode) {
+    let p1 = req.params[0].clone();
+
+    let param: i64;
+    match p1 {
+        ParamData::int(val) => param = val,
+        _ => return (String::new(), StatusCode::BadRequest),
+    }
+
+    let resp = format!("{{\"patched_item_id\":\"{param}\"}}");
+    return (resp, StatusCode::NoContent);
+}
+
 fn main() {
     
     let mut server = Server::new("127.0.0.1:8080");
 
-    let mut db = DBConnector::new("root", "", "localhost", 3306, "mylittledb").expect("creating database failed");
-
-    db.add_table(table!(
-        User
-        id INT PRIMARY_KEY AUTO_INCREMENT;
-        is_premium BOOL DEFAULT(0);
-        username VARCHAR(255) UNIQUE NOT_NULL;
-        email VARCHAR(255) UNIQUE NOT_NULL;
-        password CHAR(255);
-    ));
-
-    let _ = db.describe("User");
+    
 
     server.get("/users/:string", get_name);
 
     server.delete("/users/:int", delete_something);
 
     server.post("/users/:float", post_user);
+
+    server.put("/items/:int", put_something);
+
+    server.patch("/items/:int", patch_something);
 
     server.run();
 

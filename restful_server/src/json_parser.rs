@@ -235,53 +235,7 @@ impl Value {
     }
 }
 
-static main_str: &str = "{\
-    \"name\":\"Alice\", \
-    \"ageAAAAAAAAAAAAAAAAAAAAAaaa\":30, \
-    \"isStudent\":false, \
-    \"grades\":[85.5, 90, null, {\"semester\":\"Fall\", \"GPA\":3.8}], \
-    \"address\":{ \
-        \"city\":\"Wonderland\", \
-        \"zipcode\":12345, \
-        \"coordinates\":{ \"latitude\":51.5074, \"longitude\":-0.1278 }, \
-        \"aliases\": [\"Dreamland\", \"MysticCity\", \"The Great City\"] \
-    }, \
-    \"Mother's name\":\"Nathalie Nathalieman\", \
-    \"Father's name\":null, \
-    \"siblings\":[ \
-        {\"name\":\"Bob\", \"age\":25, \"isStudent\":true, \"jobs\": [{\"company\":\"TechCorp\", \"position\":\"Engineer\"}]}, \
-        {\"name\":\"Clara\", \"age\":28, \"isStudent\":false, \"hobbies\":[\"painting\", \"music\"]}, \
-        null \
-    ], \
-    \"isGraduated\":false, \
-    \"courses\":{ \
-        \"current\":[\"Math\", \"Physics\", \"Computer Science\"], \
-        \"completed\":[ \
-            {\"name\":\"History\", \"year\":2019, \"grade\":\"A-\"}, \
-            {\"name\":\"Biology\", \"year\":2020, \"grade\":\"B+\", \"specialNotes\":\"Lab work was excellent\"} \
-        ], \
-        \"upcoming\":[\"Philosophy\", \"Astronomy\"] \
-    }, \
-    \"preferences\":{ \
-        \"colors\":[\"blue\", \"green\", \"red\"], \
-        \"food\":{ \
-            \"favorite\":\"Pizza\", \
-            \"disliked\":\"Broccoli\" \
-        }, \
-        \"contact\":{ \
-            \"email\":\"alice@example.com\", \
-            \"phone\":null, \
-            \"notifications\":true \
-        } \
-    }, \
-    \"account_balance\":-200.75, \
-    \"lucky_numbers\":[7, 13, 22, 3.14], \
-    \"complex_number\":{ \
-        \"real\":1.0, \"imaginary\":-1.0 \
-    }, \
-    \"escaped_characters\":\"Tab:\\t, Newline:\\n, Quote:\\\"\", \
-    \"nested_escapes\":\"Line Break\\r\\nAnother Line\" \
-}";
+
 
 #[cfg(test)]
 mod tests {
@@ -353,11 +307,59 @@ mod tests {
         assert_eq!(
             Ok(example_obj3),
             Value::from_str("{\"mynum\":6,\"myval\":\"hi\" ,\"my_arr\":[\"bruh\",4.5]}")
-        );//meow yipppeeee (i love csabi!!!!!!!!!!)      
+        );
 
-        let val = Value::from_str(main_str);
-        println!("{:?}", Value::from_str(main_str));
-        assert_eq!(val, Ok(Value::Null));
+        let big_obj_str: &str = "{\
+            \"name\":\"Alice\", \
+            \"ageAAAAAAAAAAAAAAAAAAAAAaaa\":30, \
+            \"isStudent\":false, \
+            \"grades\":[85.5, 90, null, {\"semester\":\"Fall\", \"GPA\":3.8}], \
+            \"address\":{ \
+                \"city\":\"Wonderland\", \
+                \"zipcode\":12345, \
+                \"coordinates\":{ \"latitude\":51.5074, \"longitude\":-0.1278 }, \
+                \"aliases\": [\"Dreamland\", \"MysticCity\", \"The Great City\"] \
+            }, \
+            \"Mother's name\":\"Nathalie Nathalieman\", \
+            \"Father's name\":null, \
+            \"siblings\":[ \
+                {\"name\":\"Bob\", \"age\":25, \"isStudent\":true, \"jobs\": [{\"company\":\"TechCorp\", \"position\":\"Engineer\"}]}, \
+                {\"name\":\"Clara\", \"age\":28, \"isStudent\":false, \"hobbies\":[\"painting\", \"music\"]}, \
+                null \
+            ], \
+            \"isGraduated\":false, \
+            \"courses\":{ \
+                \"current\":[\"Math\", \"Physics\", \"Computer Science\"], \
+                \"completed\":[ \
+                    {\"name\":\"History\", \"year\":2019, \"grade\":\"A-\"}, \
+                    {\"name\":\"Biology\", \"year\":2020, \"grade\":\"B+\", \"specialNotes\":\"Lab work was excellent\"} \
+                ], \
+                \"upcoming\":[\"Philosophy\", \"Astronomy\"] \
+            }, \
+            \"preferences\":{ \
+                \"colors\":[\"blue\", \"green\", \"red\"], \
+                \"food\":{ \
+                    \"favorite\":\"Pizza\", \
+                    \"disliked\":\"Broccoli\" \
+                }, \
+                \"contact\":{ \
+                    \"email\":\"alice@example.com\", \
+                    \"phone\":null, \
+                    \"notifications\":true \
+                } \
+            }, \
+            \"account_balance\":-200.75, \
+            \"lucky_numbers\":[7, 13, 22, 3.14], \
+            \"complex_number\":{ \
+                \"real\":1.0, \"imaginary\":-1.0 \
+            }, \
+            \"escaped_characters\":\"Tab:\\t, Newline:\\n, Quote:\\\"\", \
+            \"nested_escapes\":\"Line Break\\r\\nAnother Line\" \
+        }";
+
+        let val = Value::from_str(big_obj_str);
+        println!("{:?}", Value::from_str(big_obj_str));
+        assert_eq!(val, Ok(Value::Null)); //I won't even bother trying to translate this
     }
 
 }
