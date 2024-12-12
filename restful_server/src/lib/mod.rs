@@ -2,6 +2,9 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
 mod json_parser;
+mod json_serializer;
+// use crate::json_parser;
+
 
 #[derive(Debug, Clone, Copy)]
 pub enum ParamDtype {
@@ -27,7 +30,7 @@ pub enum method {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum StatusCode {
+pub enum StatusCode {
     OK = 200,
     Created = 201,
     Accepted = 202,
@@ -74,11 +77,11 @@ impl StatusCode {
 }
 
 pub struct Request {
-    method: method,
-    endpoint: String,
-    params: Vec<ParamData>, //not yet supported
+    pub method: method,
+    pub endpoint: String,
+    pub params: Vec<ParamData>, //not yet supported
 
-    body: String,
+    pub body: String,
 }
 
 impl Request {
@@ -321,7 +324,7 @@ pub struct Server {
 }
 
 impl Server {
-    fn new(address: &str) -> Self {
+    pub fn new(address: &str) -> Self {
         println!("setting up server at address {address}...");
         Server {
             listener: TcpListener::bind(address)
@@ -330,7 +333,7 @@ impl Server {
             handlers: Vec::new(),
         }
     }
-    fn handle_request(&self, mut stream: TcpStream) {
+    pub fn handle_request(&self, mut stream: TcpStream) {
         let mut buffer: [u8; 8192] = [0; 8192];
         let read_result = stream.read(&mut buffer);
         if let Err(error) = read_result {
@@ -348,7 +351,7 @@ impl Server {
             }
         }
     }
-    fn run(&self) {
+    pub fn run(&self) {
         println!("Server is running at address {}", &self.address);
         for stream in self.listener.incoming() {
             match stream {
@@ -360,7 +363,7 @@ impl Server {
         }
     }
 
-    fn get(&mut self, endpoint: &str, function: fn(Request) -> (String, StatusCode)) {
+    pub fn get(&mut self, endpoint: &str, function: fn(Request) -> (String, StatusCode)) {
         //TODO: make this create a request handler and append it to the request handlers
         // println!("found endpoint: {endpoint}");
         let handler = RequestHandler::new(method::GET, endpoint, function);
@@ -370,7 +373,7 @@ impl Server {
         }
     }
 
-    fn post(&mut self, endpoint: &str, function: fn(Request) -> (String, StatusCode)) {
+    pub fn post(&mut self, endpoint: &str, function: fn(Request) -> (String, StatusCode)) {
         let handler = RequestHandler::new(method::POST, endpoint, function);
         match handler {
             Ok(h) => self.handlers.push(h),
@@ -378,21 +381,21 @@ impl Server {
         }
     }
 
-    fn put(&mut self, endpoint: &str, function: fn(Request) -> (String, StatusCode)) {
+    pub fn put(&mut self, endpoint: &str, function: fn(Request) -> (String, StatusCode)) {
         let handler = RequestHandler::new(method::PUT, endpoint, function);
         match handler {
             Ok(h) => self.handlers.push(h),
             Err(e) => eprintln!("Error: cannot add handler: {e:?}"),
         }
     }
-    fn patch(&mut self, endpoint: &str, function: fn(Request) -> (String, StatusCode)) {
+    pub fn patch(&mut self, endpoint: &str, function: fn(Request) -> (String, StatusCode)) {
         let handler = RequestHandler::new(method::PATCH, endpoint, function);
         match handler {
             Ok(h) => self.handlers.push(h),
             Err(e) => eprintln!("Error: cannot add handler: {e:?}"),
         }
     }
-    fn delete(&mut self, endpoint: &str, function: fn(Request) -> (String, StatusCode)) {
+    pub fn delete(&mut self, endpoint: &str, function: fn(Request) -> (String, StatusCode)) {
         let handler = RequestHandler::new(method::DELETE, endpoint, function);
         match handler {
             Ok(h) => self.handlers.push(h),
@@ -401,86 +404,5 @@ impl Server {
     }
 }
 
-fn get_name(req: Request) -> (String, StatusCode) {
-    let param1 = req.params[0].clone();
-    let param: String;
-    match param1 {
-        ParamData::string(val) => param = val,
-        _ => return (String::new(), StatusCode::BadRequest),
-    }
 
-    let resp = format!("{{\"username\":\"{param}\"}}");
-    return (resp, StatusCode::OK);
-}
 
-fn post_user(req: Request) -> (String, StatusCode) {
-    let param1 = req.params[0].clone();
-    let param: f64;
-    match param1 {
-        ParamData::float(val) => param = val,
-        _ => return (String::new(), StatusCode::BadRequest),
-    }
-
-    let resp = format!("{{\"float found\":\"{param}\"}}");
-    return (resp, StatusCode::OK);
-}
-
-fn delete_something(req: Request) -> (String, StatusCode) {
-    let p1 = req.params[0].clone();
-
-    let param: i64;
-    match p1 {
-        ParamData::int(val) => param = val,
-        _ => return (String::new(), StatusCode::BadRequest),
-    }
-
-    let resp = format!("{{\"deleted_thing\":\"{param}\"}}");
-    return (resp, StatusCode::NoContent);
-}
-
-fn put_something(req: Request) -> (String, StatusCode) {
-    let p1 = req.params[0].clone();
-
-    let param: i64;
-    match p1 {
-        ParamData::int(val) => param = val,
-        _ => return (String::new(), StatusCode::BadRequest),
-    }
-
-    let resp = format!("{{\"updated_item_id\":\"{param}\"}}");
-    return (resp, StatusCode::NoContent);
-}
-
-fn patch_something(req: Request) -> (String, StatusCode) {
-    let p1 = req.params[0].clone();
-
-    let param: i64;
-    match p1 {
-        ParamData::int(val) => param = val,
-        _ => return (String::new(), StatusCode::BadRequest),
-    }
-
-    let resp = format!("{{\"patched_item_id\":\"{param}\"}}");
-    return (resp, StatusCode::NoContent);
-}
-
-fn main() {
-    
-    let mut server = Server::new("127.0.0.1:8080");
-
-    
-
-    server.get("/users/:string", get_name);
-
-    server.delete("/users/:int", delete_something);
-
-    server.post("/users/:float", post_user);
-
-    server.put("/items/:int", put_something);
-
-    server.patch("/items/:int", patch_something);
-
-    server.run();
-
-    
-}
