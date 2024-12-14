@@ -1,4 +1,4 @@
-use crate::{ErrorInfo, SyntaxError, TokenDef::{Token, TokenType}};
+use crate::{ErrorInfo, SyntaxError, TokenDef::{Token, TokenType, LiteralType}};
 
 pub struct Scanner {
     source: String,
@@ -34,24 +34,107 @@ impl Scanner {
     fn scan_token(&mut self) -> Result<(), SyntaxError>{
         let current_char: char = self.advance();
         match current_char {
-            '(' => self.add_token(TokenType::LEFT_PAREN),
-            ')' => self.add_token(TokenType::RIGHT_PAREN),
-            '{' => self.add_token(TokenType::LEFT_BRACE),
-            '}' => self.add_token(TokenType::RIGHT_BRACE),
-            ',' => self.add_token(TokenType::COMMA),
-            '.' => self.add_token(TokenType::DOT),
-            '-' => self.add_token(TokenType::MINUS),
-            '+' => self.add_token(TokenType::PLUS),
-            ';' => self.add_token(TokenType::SEMICOLON),
-            '*' => self.add_token(TokenType::STAR),
-            _ => {
-                let err_msg = "Unexpected character".to_string();
-                eprintln!("Unexpected character");
+            '(' => self.add_token(TokenType::LEFT_PAREN, LiteralType::None),
+            ')' => self.add_token(TokenType::RIGHT_PAREN, LiteralType::None),
+            '{' => self.add_token(TokenType::LEFT_BRACE, LiteralType::None),
+            '}' => self.add_token(TokenType::RIGHT_BRACE, LiteralType::None),
+            ',' => self.add_token(TokenType::COMMA, LiteralType::None),
+            '.' => self.add_token(TokenType::DOT, LiteralType::None),
+            '-' => self.add_token(TokenType::MINUS, LiteralType::None),
+            '+' => self.add_token(TokenType::PLUS, LiteralType::None),
+            ';' => self.add_token(TokenType::SEMICOLON, LiteralType::None),
+            '*' => self.add_token(TokenType::STAR, LiteralType::None),
 
-                return Err(SyntaxError::DescribedError(ErrorInfo::new(self.line, self.current, err_msg)));
+            '!' => {
+                if self.match_next('='){
+                    self.add_token(TokenType::BANG_EQUAL, LiteralType::None);
+                }
+                else {
+                    self.add_token(TokenType::BANG, LiteralType::None);
+                }
+            },
+            '=' => {
+                if self.match_next('='){
+                    self.add_token(TokenType::EQUAL, LiteralType::None);
+                }
+                else {
+                    self.add_token(TokenType::EQUAL_EQUAL, LiteralType::None);
+                }
+            },
+            '<' => {
+                if self.match_next('='){
+                    self.add_token(TokenType::LESS_EQUAL, LiteralType::None);
+                }
+                else {
+                    self.add_token(TokenType::LESS, LiteralType::None);
+                }
+            },
+            '>' => {
+                if self.match_next('='){
+                    self.add_token(TokenType::GREATER_EQUAL, LiteralType::None);
+                }
+                else {
+                    self.add_token(TokenType::GREATER, LiteralType::None);
+                }
+            },
+            '/' => {
+                if self.match_next('/'){
+                    while self.peek() != '\n' && !self.is_at_end() {
+                        self.advance();
+                    }
+                }
+                else {
+                    self.add_token(TokenType::SLASH, LiteralType::None);
+                }
+            },
+            ' ' | '\r' | '\t' => (),
+            '\n' => {
+                self.line += 1;
+            }
+            'o' => {
+                if self.peek() == 'r'{
+                    self.add_token(TokenType::OR, LiteralType::None);
+                }
+            }
+            _ => {
+                if current_char.is_numeric() {
+                    self.number();
+                }   
+                else {
+                    let err_msg = "Unexpected character".to_string();
+                    eprintln!("{err_msg}");
+                    return Err(SyntaxError::DescribedError(ErrorInfo::new(self.line, self.current, err_msg)));
+                }   
             }
         }
         Ok(())
+    }
+
+    fn peek(&mut self) -> char {
+        match self.source_chars.get(self.current) {
+            Some(ch) => {
+                ch.clone()
+            },
+            _ => '\0',
+        }
+    }
+
+    fn peek_next(&mut self) -> char {
+        match self.source_chars.get(self.current+1) {
+            Some(ch) => {
+                ch.clone()
+            },
+            _ => '\0',
+        }
+    }
+
+    fn match_next(&mut self, expected: char) -> bool {
+        match self.source_chars.get(self.current+1) {
+            Some(ch) => {
+                return ch.clone() == expected;
+            },
+            _ => false,
+        }
     }
 
     fn advance(&mut self) -> char{
@@ -60,11 +143,53 @@ impl Scanner {
             .expect("The code had more than 2**64 characters. Congratulations...");
     }
 
-    fn add_token(&mut self, token_type: TokenType) { //the literal might become a parameter later
+    fn add_token(&mut self, token_type: TokenType, literal_val: LiteralType) { //the literal might become a parameter later
         let text: String = self.source_chars[self.start..self.current].iter().collect();
-        let literal: Box<Option<u8>> = Box::new(None); //I don't know what the literal's type will be yet...
-        let new_token = Token::new(token_type, text, literal, self.line);
+        let new_token = Token::new(token_type, text, Box::new(literal_val), self.line);
         self.tokens.push(new_token);
     }
+
+    fn string(&mut self) -> Result<(), SyntaxError>{
+        while self.peek() != '"' && !self.is_at_end() {
+            if self.peek() == '\n' {
+                self.line += 1;
+            }
+            self.advance();
+        }
+
+        if self.is_at_end(){
+            let err_msg = "Unexpected character".to_string();
+            eprintln!("{err_msg}");
+            return Err(SyntaxError::DescribedError(ErrorInfo::new(self.line, self.current, err_msg)));
+        }
+
+        self.advance(); //to jump over the closing
+        let value: String = self.source_chars[self.start+1..self.current-1].iter().collect();
+        self.add_token(TokenType::STRING, LiteralType::String(value));
+
+
+        Ok(())
+    }
+
+    fn number(&mut self){
+        while self.peek().is_numeric() {
+            self.advance();
+        }
+        if self.peek() == '.' && self.peek_next().is_numeric() {
+            self.advance();
+
+            while self.peek().is_numeric() {
+                self.advance();
+            }
+        }
+
+        let numeric_part: String = self.source_chars[self.start..self.current].iter().collect();
+
+        let num = numeric_part.parse::<f64>()
+            .expect("This cannot really happen?");
+
+        self.add_token(TokenType::NUMBER, LiteralType::Number(num));
+    }
+
 
 }

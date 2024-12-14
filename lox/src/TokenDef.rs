@@ -19,6 +19,13 @@ pub enum TokenType {
     EOF
 }
 
+#[derive(Debug, Clone)]
+pub enum LiteralType {
+    Number(f64),
+    String(String),
+    None,
+}
+
 #[derive(Debug)]
 pub struct Token {
     token_type: TokenType,
