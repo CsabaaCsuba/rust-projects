@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{ErrorInfo, SyntaxError, TokenDef::{Token, TokenType, LiteralType}};
 
 pub struct Scanner {
@@ -7,14 +9,32 @@ pub struct Scanner {
     start: usize,
     current: usize,
     line: usize,
+    keywords: HashMap<String, TokenType>
 }
 
 impl Scanner {
     pub fn new(source: &str) -> Self {
-        let cloned_str = source.clone().to_owned();
+        let mut keywords = HashMap::new();
+        keywords.insert("and".to_string(), TokenType::AND);
+        keywords.insert("class".to_string(), TokenType::CLASS);
+        keywords.insert("else".to_string(), TokenType::ELSE);
+        keywords.insert("false".to_string(), TokenType::FALSE);
+        keywords.insert("for".to_string(), TokenType::FOR);
+        keywords.insert("fun".to_string(), TokenType::FUN);
+        keywords.insert("if".to_string(), TokenType::IF);
+        keywords.insert("nil".to_string(), TokenType::NIL);
+        keywords.insert("or".to_string(), TokenType::OR);
+        keywords.insert("print".to_string(), TokenType::PRINT);
+        keywords.insert("return".to_string(), TokenType::RETURN);
+        keywords.insert("super".to_string(), TokenType::SUPER);
+        keywords.insert("this".to_string(), TokenType::THIS);
+        keywords.insert("true".to_string(), TokenType::TRUE);
+        keywords.insert("var".to_string(), TokenType::VAR);
+        keywords.insert("while".to_string(), TokenType::WHILE);
+        let cloned_str = source.to_owned();
         let new_vec: Vec<Token> = Vec::new();
         let src_chars = cloned_str.chars().collect();
-        Self {source: cloned_str, source_chars: src_chars, tokens: new_vec, start: 0, current: 0, line: 1}
+        Self {source: cloned_str, source_chars: src_chars, tokens: new_vec, start: 0, current: 0, line: 1, keywords: keywords}
     }
 
     pub fn scan_tokens(&mut self) -> Vec<Token>{
@@ -83,6 +103,31 @@ impl Scanner {
                         self.advance();
                     }
                 }
+                else if self.match_next('*'){
+                    loop {
+                        let current = self.advance();
+                        let next = self.advance();
+
+                        if current == '*' && next == '/' {
+                            break; //the multi-line comment is over
+                        }
+                        else if next == '*' {
+                            // if only the next is a *, then the current index has to be
+                            // set back by one, so the star can be checked on the next iteration as current
+                            self.current -= 1;
+                        }
+                        else { //if it's not a comment ending, the only important characters are newlines 
+                            if current == '\n'{
+                                self.line += 1;
+                            }
+                            if next == '\n' {
+                                self.line += 1;
+                            }
+                        }
+
+
+                    }
+                }
                 else {
                     self.add_token(TokenType::SLASH, LiteralType::None);
                 }
@@ -99,7 +144,10 @@ impl Scanner {
             _ => {
                 if current_char.is_numeric() {
                     self.number();
-                }   
+                }
+                else if current_char.is_alphabetic() || current_char == '_'{
+
+                }
                 else {
                     let err_msg = "Unexpected character".to_string();
                     eprintln!("{err_msg}");
@@ -129,7 +177,8 @@ impl Scanner {
     }
 
     fn match_next(&mut self, expected: char) -> bool {
-        match self.source_chars.get(self.current+1) {
+        self.current += 1;
+        match self.source_chars.get(self.current) {
             Some(ch) => {
                 return ch.clone() == expected;
             },
@@ -189,6 +238,26 @@ impl Scanner {
             .expect("This cannot really happen?");
 
         self.add_token(TokenType::NUMBER, LiteralType::Number(num));
+    }
+
+    fn identifier(&mut self){
+        loop {
+            let current_char = self.peek();
+            if current_char.is_alphanumeric() || current_char == '_' {
+                self.advance();
+            }
+            else {
+                break;
+            }
+        }
+
+        let text: String = self.source_chars[self.start..self.current].iter().collect();
+        let token_type = self.keywords.get(&text);
+        match token_type {
+            //if it's in the hashmap, return the right variable name. Else, it's an identifier (variable name)
+            Some(val) => self.add_token(val.to_owned(), LiteralType::None),
+            None => self.add_token(TokenType::IDENTIFIER, LiteralType::None)
+        }
     }
 
 

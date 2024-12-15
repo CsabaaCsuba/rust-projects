@@ -1,7 +1,8 @@
-use std::{env, error, fmt, fs, io};
+use std::{env, error::Error, fmt, fs, io};
 
 mod TokenDef;
 mod Scanner;
+mod GenerateAst;
 
 #[derive(Debug, Clone)]
 struct ErrorInfo {
@@ -75,11 +76,24 @@ fn run(source: &str) -> Result<(), SyntaxError> {
     Ok(())
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
+    println!("Found args: {args:?}");
     if args.len() > 1 {
-        eprintln!("Usage: jlox -- file_name");
-        return;
+        
+        if args[1] == "-ast" {
+            match args.get(2){
+                None => (),
+                Some(arg_str) => {
+                    GenerateAst::generate(arg_str.clone())?;
+                    return Ok(());
+                }
+            }
+        }
+    
+        eprintln!("Usage: jlox -- file_name OR jlox -- -ast output_directory");
+        return Err(Box::new(SyntaxError::SimpleError("Usage: jlox -- file_name OR jlox -- -ast output_directory".to_string())));
+    
     }
     else if args.len() == 1 {
         runFile(&args[0]);
@@ -87,5 +101,7 @@ fn main() {
     else {
         runPrompt();
     }
+
+    Ok(())
     
 }
