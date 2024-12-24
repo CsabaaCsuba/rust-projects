@@ -579,4 +579,6 @@ mod tests {
 
         assert_eq!(table.fields[1].constraints[0], Constraint::Default(DefaultValue::Int(1)));
     }
+
+    // #[test]
 }
