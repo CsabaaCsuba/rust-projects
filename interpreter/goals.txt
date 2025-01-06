@@ -1,5 +1,0 @@
-Goal:
-Read the Crafting Interpreters Book -> make a language based on that.
-Watch videos about how interpreters work
-
-Language syntax: just like lua, but written in rust.

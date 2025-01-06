@@ -1,3 +1,6 @@
+#[allow(unused)]
+#[allow(dead_code)]
+
 mod lib;
 use lib::*;
 
