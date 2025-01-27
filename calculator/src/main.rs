@@ -67,7 +67,7 @@ fn check_binary_fit(tokens_slice: &[Token]) -> Option<BinaryOp>{
 unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<BinaryOp> {
     let mut i = *idx;
     let tokens_len = expr_tokens.len();
-    let return_op: BinaryOp;
+    let mut return_op: BinaryOp;
     let mut has_prio: bool = match expr_tokens[i] {
         Token::OpenParenthesis => {
             i += 1;
@@ -112,6 +112,7 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
             println!("Expression Started with parentheses, expects parentheses at the end");
             return None;
         }
+        return_op.has_prio = true;
     }
 
     
