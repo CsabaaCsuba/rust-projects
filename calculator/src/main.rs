@@ -88,6 +88,7 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
         false => 1,
     };
     
+    //todo: make this sense if the next character is a closing parenthesis if there was an open parenthesis
     if i == tokens_len-minus_idx {
         println!("Current pattern: num");
         if let Token::Number(num) = expr_tokens[i]{
