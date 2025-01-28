@@ -1,4 +1,5 @@
 use core::panic;
+use std::ptr::null;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Token {
@@ -32,6 +33,17 @@ pub(crate) struct BinaryOp {
 }
 
 impl BinaryOp {
+    fn new(has_prio: bool, left_val: Option<BinaryOp>, right_val: Option<BinaryOp>, op_type: OperationKind) -> Self {
+        let left_value = match left_val {
+            Some(b_op) => Some(Box::new(b_op)),
+            _ => None
+        };
+        let right_value = match right_val {
+            Some(b_op) => Some(Box::new(b_op)),
+            _ => None
+        };
+        return BinaryOp {has_prio, left_value, right_value, op_type}
+    }
     fn number(num: f64) -> Self {
         return BinaryOp { has_prio: false, left_value: None, right_value: None, op_type: OperationKind::None(num) }
     }
@@ -71,6 +83,7 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
     println!("->recursive call started");
     let mut i = *idx;
     let tokens_len = expr_tokens.len();
+    //todo: make this an option and refactor writing to this variable every time
     let mut return_op: BinaryOp = BinaryOp { has_prio: false, left_value: None, right_value: None, op_type: OperationKind::None(0.0) };
     let mut op_found = false;
     let has_prio: bool = match expr_tokens[i] {
@@ -81,15 +94,9 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
         },
         _ => false,
     };
-
-    //only the last token can be a number on it's own + a token inside parentheses
-    let minus_idx: usize = match has_prio {
-        true => 2,
-        false => 1,
-    };
     
-    //todo: make this sense if the next character is a closing parenthesis if there was an open parenthesis
-    if i == tokens_len-minus_idx {
+    //todo: refactor this to a be a function with non-reduntant code
+    if i == tokens_len-1 || expr_tokens.get(i+1) == Some(&Token::ClosedParenthesis) {
         println!("Current pattern: num");
         if let Token::Number(num) = expr_tokens[i]{
             i += 1;
@@ -99,8 +106,18 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
         else {
             panic!("The last token ({:?}) does not adhere to any rules", expr_tokens[i]);   
         }
-        
     }
+    // if let Some(Token::ClosedParenthesis) = expr_tokens.get(i+1) {
+    //     println!("Current pattern: num");
+    //     if let Token::Number(num) = expr_tokens[i]{
+    //         i += 1;
+    //         return_op = BinaryOp::number(num);
+    //         op_found = true;
+    //     }
+    //     else {
+    //         panic!("The last token ({:?}) does not adhere to any rules", expr_tokens[i]);   
+    //     }
+    // }
     //checks if the next operation is a simple binary operation
     else if i+2 <= tokens_len && !op_found {
         println!("Current pattern: num + num");
@@ -143,6 +160,7 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
                         println!("Operation of {:?} found.", operation.op_type);
                         return_op.right_value = Some(Box::new(operation));
                         op_found = true;
+                        i = *idx;
                     }
                     None => {
                         panic!("Expression expected as the continuation of parsing.");
@@ -158,6 +176,42 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
             }
         }
     }
+    }
+
+    //if something has been parsed before, it can have something like * 7
+    //syntax like 6 + 3 (* 7) isn't allowed of course
+    //this should be checked if an operation has been found
+    if i <= tokens_len-2 && op_found { // && !has_prio //-3 because there should be 2 tokens at least
+        println!("checking possibility of a parsed_expr + expr pattern...");
+        match expr_tokens.get(i){
+            Some(Token::Number(num)) => panic!("Number ({num:?}) is not valid here."),
+            Some(Token::OpenParenthesis) | Some(Token::ClosedParenthesis) => panic!("Parentheses are not valid here"),
+            Some(op_token) => {
+                let op_type = match op_token{
+                    Token::Add => OperationKind::Add,
+                    Token::Subtract => OperationKind::Subtract,
+                    Token::Multiply => OperationKind::Multiply,
+                    Token::Divide => OperationKind::Divide,
+                    _ => panic!("other operations are impossible")
+                };
+                i += 1;
+                *idx = i;
+                let other_wing = parse_expression(expr_tokens, idx);
+                match other_wing {
+                    Some(new_op) => {
+                    /*
+                    TODO: switch the return_op to an other operation based on which should come later, 
+                    the currently parsed operation's evaluation, or the old return_op's evaluation
+                     */
+                        let parent_op = BinaryOp::new(false, Some(return_op.clone()), Some(new_op), op_type);
+                        return_op = parent_op;
+                        i = *idx;
+                    },
+                    None => panic!("No valid expresison found after {op_token:?}")
+                }
+            },
+            other_val => panic!("unexpected value when trying to parse right-side value of binary expression: {other_val:?}"),
+        }
     }
 
     
@@ -177,7 +231,7 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
 
     
     
-    *idx = i;
+    *idx = i; //this might cause bugs since recursive calls will set *idx forward
 
     return Some(return_op);
 }
@@ -194,10 +248,22 @@ fn main() {
         Token::ClosedParenthesis,
     ];
 
+    // let expression = "1 + 6 * 7";
+    let expression_tokens_2 = vec![
+        Token::Number(1.0),
+        Token::Add,
+        Token::Number(6.0),
+        Token::Multiply,
+        Token::Number(7.0),
+    ];
+
     let mut i: usize = 0;
     unsafe {
-        let parsed_expr = parse_expression(&expression_tokens, &mut i);
-        println!("parsed expression: {parsed_expr:?}");
+        // let parsed_expr = parse_expression(&expression_tokens, &mut i);
+        // println!("parsed expression: {parsed_expr:?}");
+        i = 0;
+        let parsed_expr_2 = parse_expression(&expression_tokens_2, &mut i);
+        println!("parsed expression: {parsed_expr_2:?}");
     }
     
 
