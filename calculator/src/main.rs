@@ -21,6 +21,16 @@ pub enum OperationKind {
     None(f64), //then it will be an exact number
 }
 
+impl OperationKind {
+    fn weight(&self) -> u8 {
+        match self {
+            Self::None(_) => return 0,
+            Self::Add | Self::Subtract => return 1,
+            Self::Multiply | Self::Divide => return 2,
+        }
+    }
+}
+
 
 
 #[derive(Debug, Clone)]
@@ -216,6 +226,17 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
     }
     }
 
+    if has_prio {
+        if expr_tokens[i] == Token::ClosedParenthesis {
+            println!(">>>>>>>>>>Found expression has priority (parentheses) after it.");
+            return_op.has_prio = true;
+            i += 1;
+        }
+        else {
+            println!(">>>>>>>>>>Found expression has no priority.");
+        }  
+    }
+
     //if something has been parsed before, it can have something like * 7
     //syntax like 6 + 3 (* 7) isn't allowed of course
     //this should be checked if an operation has been found
@@ -261,7 +282,15 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
                         }
                         else {
                             //todo: make a plan on implementing this as well.
-                            todo!()
+
+                            //if the expressions are on the same level of operation (either [*, /] or [+, -]), and neither one has parentheses
+                            if return_op.op_type.weight() == new_expr.op_type.weight() && return_op.op_type.weight() == op_type.weight()
+                                && return_op.has_prio == false && new_expr.has_prio == false {
+                                
+                                let new_expr_left = new_expr.left_value.unwrap();
+                                new_expr.left_value = Some(Box::new(BinaryOp::new(false, Some(return_op.clone()), Some(*new_expr_left), op_type)));
+                                return_op = new_expr;
+                            }
                         }
                         
 
@@ -282,12 +311,15 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
         return None;
     }
 
-    if has_prio {
-        if expr_tokens[i] != Token::ClosedParenthesis {
-            println!("Expression Started with parentheses, expects parentheses at the end");
-            return None;
+    if has_prio && !return_op.has_prio {
+        if expr_tokens[i] == Token::ClosedParenthesis {
+            println!("Closing parenthesis has been found on the last check.");
+            return_op.has_prio = true;
+            i += 1;
         }
-        return_op.has_prio = true;
+        else {
+            panic!("Closing parenthesis wasn't found...");
+        }  
     }
 
     
@@ -329,6 +361,17 @@ fn main() {
         Token::Number(4.0),
     ];
 
+    //let expression = "9 + 8 - 3 + 4";
+    let expression_tokens_4 = vec![
+        Token::Number(9.0),
+        Token::Divide,
+        Token::Number(8.0),
+        Token::Multiply,
+        Token::Number(3.0),
+        Token::Multiply,
+        Token::Number(4.0),
+    ];
+
     let mut i: usize = 0;
     unsafe {
         // let parsed_expr = parse_expression(&expression_tokens, &mut i);
@@ -336,8 +379,8 @@ fn main() {
         // let parsed_expr_2 = parse_expression(&expression_tokens_2, &mut i);
         // println!("parsed expression: {parsed_expr_2:?}");
         i = 0;
-        let parsed_expr_3 = parse_expression(&expression_tokens_3, &mut i).unwrap();
-        println!("parsed expression: {parsed_expr_3:?}");
+        let parsed_expr_4 = parse_expression(&expression_tokens_4, &mut i).unwrap();
+        println!("parsed expression: {parsed_expr_4:?}");
     }
     
 
