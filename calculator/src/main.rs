@@ -127,6 +127,16 @@ fn calculate_op_value(expr: &BinaryOp) -> usize {
     return val;
 }
 
+fn check_pattern_fit(checker: &[Token], checked_against: &[Token]) -> bool {
+    assert_eq!(checker.len(), checked_against.len());
+    for (idx, t) in checker.iter().enumerate(){
+        if *t != checked_against[idx] {
+            return false;
+        }
+    }
+    true
+}
+
 unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<BinaryOp> {
     println!("->recursive call started");
     let mut i = *idx;
@@ -174,6 +184,48 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
             return_op = binary_op;
             op_found = true;
         }
+        //this will check for patterns like 3 + (2 + 10)
+        //TODO: test this
+        else if let Token::Number(n) = expr_tokens[i] {
+            match expr_tokens[i+1] {
+                Token::Add | Token::Subtract | Token::Multiply | Token::Divide => {
+                    let operation_idx = i + 1;
+                    match expr_tokens[i+2] {
+                        Token::OpenParenthesis => {
+                            println!("trying pattern num + (expression)");
+                            i += 3;
+                            *idx = i;
+                            let expr = parse_expression(expr_tokens, idx);
+                            i = *idx;
+                            if let Some(new_expr) = expr {
+                                let op_type = match expr_tokens[operation_idx] {
+                                    Token::Add => OperationKind::Add,
+                                    Token::Subtract => OperationKind::Subtract,
+                                    Token::Multiply => OperationKind::Multiply,
+                                    Token::Divide => OperationKind::Divide,
+                                    _ => panic!("other operations are impossible")
+                                };
+                                println!("Pattern num + (expression) found.");
+                                return_op = BinaryOp::new(false, Some(BinaryOp::number(n)), Some(new_expr), op_type);
+                                if let Some(Token::ClosedParenthesis) = expr_tokens.get(i) {
+                                    op_found = true;
+                                    if let Some(expr) = &mut return_op.left_value {
+                                        expr.has_prio = true;
+                                    }
+                                    // i += 1;
+                                    
+                                }
+                                else {
+                                    panic!("num + (expression) block didn't end with a closed parenthesis. Instead it ended with {:#?}", expr_tokens.get(i+1));
+                                }
+                            }
+                        },
+                        _ => panic!("invalid token ({:?}) at index {}", expr_tokens[i+2], i+2)
+                    }
+                },
+                _ => (),
+            }
+        }
         else {
             println!("pattern num + num not satisfied ({:?})", &expr_tokens[i..i+3]);
             // panic!("test panic for return_op");
@@ -181,6 +233,7 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
         
 
     }
+
     if !op_found {
     if let Some(Token::Number(n)) = expr_tokens.get(i) {
         //TODO: create matcher for patterns like 3 + (4 * 2) [use recursive calls]
@@ -364,13 +417,35 @@ fn main() {
     //let expression = "9 + 8 - 3 + 4";
     let expression_tokens_4 = vec![
         Token::Number(9.0),
-        Token::Divide,
+        Token::Add,
         Token::Number(8.0),
-        Token::Multiply,
+        Token::Subtract,
         Token::Number(3.0),
-        Token::Multiply,
+        Token::Add,
         Token::Number(4.0),
     ];
+
+    //let expression = "9 + (8 - 3)";
+    let expression_tokens_5 = vec![
+        Token::Number(9.0),
+        Token::Add,
+        Token::OpenParenthesis,
+        Token::Number(8.0),
+        Token::Subtract,
+        Token::Number(3.0),
+        Token::ClosedParenthesis,
+    ];
+
+    //let expression = "5 + 2 * 3 - 4";
+    // let expression_tokens_6 = vec![
+    //     Token::Number(5.0),
+    //     Token::Add,
+    //     Token::Number(2.0),
+    //     Token::Multiply,
+    //     Token::Number(3.0),
+    //     Token::Subtract,
+    //     Token::Number(4.0),
+    // ];
 
     let mut i: usize = 0;
     unsafe {
@@ -379,8 +454,8 @@ fn main() {
         // let parsed_expr_2 = parse_expression(&expression_tokens_2, &mut i);
         // println!("parsed expression: {parsed_expr_2:?}");
         i = 0;
-        let parsed_expr_4 = parse_expression(&expression_tokens_4, &mut i).unwrap();
-        println!("parsed expression: {parsed_expr_4:?}");
+        let parsed_expr_5 = parse_expression(&expression_tokens_5, &mut i).unwrap();
+        println!("parsed expression: {parsed_expr_5:?}");
     }
     
 
