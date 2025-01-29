@@ -1,5 +1,4 @@
-use core::panic;
-use std::ptr::null;
+use core::{fmt, panic};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Token {
@@ -53,6 +52,30 @@ impl BinaryOp {
             _ => return BinaryOp{has_prio: false, left_value: Some(Box::new(BinaryOp::number(num1))), right_value: Some(Box::new(BinaryOp::number(num2))), op_type: operation},
         }
     }
+    fn stringify(&self) -> String {
+        return format!("{{{}, {:#?}, {:#?}, {:?}}}", self.has_prio, self.left_value, self.right_value, self.op_type);
+    }
+}
+
+impl fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if let OperationKind::None(num) = self.op_type {
+            write!(f, "NoOp{{{}}}", num)?
+        }
+        match &self.right_value {
+            Some(right_val) => {
+                match &self.left_value {
+                    Some(left_val) => {
+                        return write!(f, "{{{}, {}, {}, {:?}}}", self.has_prio, left_val.stringify(), right_val.stringify(), self.op_type)
+                    },
+                    None => {write!(f, "No left value found..")}
+                }
+
+            },
+            None => {write!(f, "No right value found..")}
+        }
+        
+    }
 }
 
 
@@ -77,6 +100,21 @@ fn check_binary_fit(tokens_slice: &[Token]) -> Option<BinaryOp>{
         _ => return None
     }
     return Some(BinaryOp::numbers_op(num1, num2, operator));
+}
+
+fn calculate_op_value(expr: &BinaryOp) -> usize {
+    let mut val: usize =  0;
+    if expr.has_prio {
+        val += 100;
+    }
+    if expr.op_type == OperationKind::Multiply || expr.op_type == OperationKind::Divide {
+        val += 10;
+    }
+    if expr.op_type == OperationKind::Add || expr.op_type == OperationKind::Subtract {
+        val += 1;
+    }
+
+    return val;
 }
 
 unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<BinaryOp> {
@@ -198,13 +236,36 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
                 *idx = i;
                 let other_wing = parse_expression(expr_tokens, idx);
                 match other_wing {
-                    Some(new_op) => {
-                    /*
-                    TODO: switch the return_op to an other operation based on which should come later, 
-                    the currently parsed operation's evaluation, or the old return_op's evaluation
-                     */
-                        let parent_op = BinaryOp::new(false, Some(return_op.clone()), Some(new_op), op_type);
-                        return_op = parent_op;
+                    Some(mut new_expr) => {
+                        //if the newly parsed expression is just a number, we don't have to care about it's op-type
+                        if let OperationKind::None(num) = new_expr.op_type {
+                            //if the op_type is multiply or divide, it should be below the current 
+                            if op_type == OperationKind::Multiply || op_type == OperationKind::Divide {
+                                let saved_op = return_op.right_value;
+                                new_expr.left_value = saved_op;
+                                new_expr.op_type = op_type;
+                                new_expr.right_value = Some(Box::new(BinaryOp::number(num)));
+                                return_op.right_value = Some(Box::new(new_expr));
+                            }
+                            else if op_type == OperationKind::Add || op_type == OperationKind::Subtract {
+                                new_expr.op_type = return_op.op_type;
+                                new_expr.left_value = return_op.left_value;
+                                new_expr.right_value = return_op.right_value;
+                                return_op.op_type = op_type;
+                                return_op.right_value = Some(Box::new(BinaryOp::number(num)));
+                                return_op.left_value = Some(Box::new(new_expr));
+                            }
+                            else {
+                                panic!("Outer op_type matcher should have caught this error.");
+                            }
+                        }
+                        else {
+                            //todo: make a plan on implementing this as well.
+                            todo!()
+                        }
+                        
+
+                        
                         i = *idx;
                     },
                     None => panic!("No valid expresison found after {op_token:?}")
@@ -255,15 +316,28 @@ fn main() {
         Token::Number(6.0),
         Token::Multiply,
         Token::Number(7.0),
+        // Token::Divide,
+        // Token::Number(2.0),
+    ];
+
+    //let expression = "3 - 2 + 4";
+    let expression_tokens_3 = vec![
+        Token::Number(3.0),
+        Token::Subtract,
+        Token::Number(2.0),
+        Token::Add,
+        Token::Number(4.0),
     ];
 
     let mut i: usize = 0;
     unsafe {
         // let parsed_expr = parse_expression(&expression_tokens, &mut i);
         // println!("parsed expression: {parsed_expr:?}");
+        // let parsed_expr_2 = parse_expression(&expression_tokens_2, &mut i);
+        // println!("parsed expression: {parsed_expr_2:?}");
         i = 0;
-        let parsed_expr_2 = parse_expression(&expression_tokens_2, &mut i);
-        println!("parsed expression: {parsed_expr_2:?}");
+        let parsed_expr_3 = parse_expression(&expression_tokens_3, &mut i).unwrap();
+        println!("parsed expression: {parsed_expr_3:?}");
     }
     
 
