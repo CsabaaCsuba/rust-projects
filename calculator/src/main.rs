@@ -335,19 +335,50 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
                         }
                         else {
                             //todo: make a plan on implementing this as well.
+                            //todo: refactor the ifs to a function which returns a 3-element array of enums, which decides which element should come first
 
                             //if the expressions are on the same level of operation (either [*, /] or [+, -]), and neither one has parentheses
-                            if return_op.op_type.weight() == new_expr.op_type.weight() && return_op.op_type.weight() == op_type.weight()
-                                && return_op.has_prio == false && new_expr.has_prio == false {
+                            let return_op_weight = return_op.op_type.weight();
+                            let new_expr_weight = new_expr.op_type.weight();
+                            let op_weight = op_type.weight();
+
+                            if return_op_weight >= op_weight && op_weight >= new_expr_weight && !new_expr.has_prio
+                            {
+                                    println!("found linear left to right pattern...");
                                 
                                 let new_expr_left = new_expr.left_value.unwrap();
                                 new_expr.left_value = Some(Box::new(BinaryOp::new(false, Some(return_op.clone()), Some(*new_expr_left), op_type)));
                                 return_op = new_expr;
                             }
+                            //if the middle operation (marked by op_type) has priority over the others.
+                            else if return_op_weight >= new_expr_weight && op_weight > return_op_weight && !new_expr.has_prio{
+                                    println!("found middle to left to right pattern...");
+                                
+                                let new_expr_left = new_expr.left_value.unwrap();
+                                let return_op_right = return_op.right_value.unwrap();
+                                return_op.right_value = Some(Box::new(BinaryOp::new(false, Some(*return_op_right), Some(*new_expr_left), op_type)));
+
+                                new_expr.left_value = Some(Box::new(return_op));
+                                return_op = new_expr;
+                            }
+                            //both operations have priority over the middle
+                            else if (return_op_weight >= op_weight || return_op.has_prio) && (new_expr_weight > op_weight || new_expr.has_prio) {
+                                let new_op = BinaryOp::new(false, Some(return_op.clone()), Some(new_expr), op_type);
+                                return_op = new_op;
+                            }
+                            //middle has priority, but the operation at the right has higher priority than the one on the left
+                            else if op_weight > return_op_weight && new_expr_weight == op_weight && !new_expr.has_prio && !return_op.has_prio {
+                                println!("found middle to right to left pattern...");
+                            }
+
+                            else {
+                                panic!("unimplemented")
+                            }
+
                         }
                         
 
-                        
+                        //TODO: implement a function which checks if the next token is an operation symbol.
                         i = *idx;
                     },
                     None => panic!("No valid expresison found after {op_token:?}")
@@ -436,16 +467,16 @@ fn main() {
         Token::ClosedParenthesis,
     ];
 
-    //let expression = "5 + 2 * 3 - 4";
-    // let expression_tokens_6 = vec![
-    //     Token::Number(5.0),
-    //     Token::Add,
-    //     Token::Number(2.0),
-    //     Token::Multiply,
-    //     Token::Number(3.0),
-    //     Token::Subtract,
-    //     Token::Number(4.0),
-    // ];
+    // let expression = "5 + 2 * 3 - 4";
+    let expression_tokens_6 = vec![
+        Token::Number(5.0),
+        Token::Add,
+        Token::Number(2.0),
+        Token::Multiply,
+        Token::Number(3.0),
+        Token::Subtract,
+        Token::Number(4.0),
+    ];
 
     let mut i: usize = 0;
     unsafe {
@@ -454,8 +485,8 @@ fn main() {
         // let parsed_expr_2 = parse_expression(&expression_tokens_2, &mut i);
         // println!("parsed expression: {parsed_expr_2:?}");
         i = 0;
-        let parsed_expr_5 = parse_expression(&expression_tokens_5, &mut i).unwrap();
-        println!("parsed expression: {parsed_expr_5:?}");
+        let parsed_expr_6 = parse_expression(&expression_tokens_6, &mut i).unwrap();
+        println!("parsed expression: {parsed_expr_6:?}");
     }
     
 
