@@ -12,5 +12,8 @@ fn main() {
         d.clear_background(Color::BLACK);
         d.draw_text("Hello world", 12, 12, 24, Color::WHITE);
         
+        let cam = Camera3D::perspective(0, 0, Vector3::new(0, 1, 0), 90.0);
+
+        
     }
 }
