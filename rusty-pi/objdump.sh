@@ -1,0 +1,1 @@
+aarch64-linux-gnu-objdump -D target/aarch64-unknown-none/debug/rusty-pi | less
