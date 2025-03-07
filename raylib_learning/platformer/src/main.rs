@@ -21,87 +21,49 @@ fn main() {
         Vector3::new(0.0, 1.0, 0.0),
         60.0,
     );
-    let mut camera_mode: CameraMode = CameraMode::CAMERA_FIRST_PERSON;
+    let mut camera_mode: CameraMode = CameraMode::CAMERA_THIRD_PERSON;
 
     let infobox_color: Color = rl.gui_fade(Color::SKYBLUE, 0.5);
 
     while !rl.window_should_close() {
-        if rl.is_key_pressed(KeyboardKey::KEY_ONE) {
-            camera_mode = CameraMode::CAMERA_FREE;
-            camera.up = Vector3::new(0.0, 1.0, 0.0);
-        }
-        if rl.is_key_pressed(KeyboardKey::KEY_TWO) {
-            camera_mode = CameraMode::CAMERA_FIRST_PERSON;
-            camera.up = Vector3::new(0.0, 1.0, 0.0);
-        }
-        if rl.is_key_pressed(KeyboardKey::KEY_THREE) {
-            camera_mode = CameraMode::CAMERA_THIRD_PERSON;
-            camera.up = Vector3::new(0.0, 1.0, 0.0);
-        }
-        if rl.is_key_pressed(KeyboardKey::KEY_FOUR) {
-            camera_mode = CameraMode::CAMERA_ORBITAL;
-            camera.up = Vector3::new(0.0, 1.0, 0.0);
-        }
 
-        if rl.is_key_pressed(KeyboardKey::KEY_P) {
-            if camera.camera_type() == CameraProjection::CAMERA_PERSPECTIVE {
-                camera_mode = CameraMode::CAMERA_THIRD_PERSON;
-                camera = Camera3D::orthographic(
-                    Vector3::new(0.0, 2.0, -100.0),
-                    Vector3::new(0.0, 2.0, 0.0),
-                    Vector3::new(0.0, 1.0, 0.0),
-                    20.0,
-                );
-            } else if camera.camera_type() == CameraProjection::CAMERA_ORTHOGRAPHIC {
-                camera_mode = CameraMode::CAMERA_THIRD_PERSON;
-                camera = Camera3D::perspective(
-                    Vector3::new(0.0, 2.0, 10.0),
-                    Vector3::new(0.0, 2.0, 0.0),
-                    Vector3::new(0.0, 1.0, 0.0),
-                    60.0,
-                );
+        // rl.update_camera(&mut camera, camera_mode);
+        let movement_vec = {
+            let mut v = Vector3::new(0.0, 0.0, 0.0);
+            if rl.is_key_down(KeyboardKey::KEY_W)
+            {
+                v.x += 1.0;
             }
-        }
+            if rl.is_key_down(KeyboardKey::KEY_S)
+            {
+                v.x -= 1.0;
+            }
+            if rl.is_key_down(KeyboardKey::KEY_D)
+            {
+                v.y += 1.0;
+            }
+            if rl.is_key_down(KeyboardKey::KEY_A)
+            {
+                v.y -= 1.0;
+            }
+            v
+        };
+
+        rl.update_camera_pro(
+            &mut camera,
+            movement_vec,
+            Vector3::new(
+                rl.get_mouse_delta().x * 0.05,
+                rl.get_mouse_delta().y * 0.05,
+                0.0,
+            ),
+            rl.get_mouse_wheel_move() * -2.0,
+        );
 
         let mut draw_handler: RaylibDrawHandle<'_> = rl.begin_drawing(&thread);
 
         let mut draw_3d: RaylibMode3D<'_, RaylibDrawHandle<'_>> = draw_handler.begin_mode3D(camera);
         // draw_3d.update_camera(&mut camera, camera_mode);
-
-        draw_3d.update_camera_pro(
-            &mut camera,
-            {
-                let mut v = Vector3::new(0.0, 0.0, 0.0);
-                if draw_3d.is_key_down(KeyboardKey::KEY_W)
-                    || draw_3d.is_key_down(KeyboardKey::KEY_UP)
-                {
-                    v.x += 1.0;
-                }
-                if draw_3d.is_key_down(KeyboardKey::KEY_S)
-                    || draw_3d.is_key_down(KeyboardKey::KEY_DOWN)
-                {
-                    v.x -= 1.0;
-                }
-                if draw_3d.is_key_down(KeyboardKey::KEY_D)
-                    || draw_3d.is_key_down(KeyboardKey::KEY_RIGHT)
-                {
-                    v.y += 1.0;
-                }
-                if draw_3d.is_key_down(KeyboardKey::KEY_A)
-                    || draw_3d.is_key_down(KeyboardKey::KEY_LEFT)
-                {
-                    v.y -= 1.0;
-                }
-
-                v
-            },
-            Vector3::new(
-                draw_3d.get_mouse_delta().x * 0.05,
-                draw_3d.get_mouse_delta().y * 0.05,
-                0.0,
-            ),
-            draw_3d.get_mouse_wheel_move() * 2.0,
-        );
 
         draw_3d.clear_background(Color::RAYWHITE);
         draw_3d.draw_plane(
@@ -109,9 +71,6 @@ fn main() {
             Vector2::new(32.0, 32.0),
             Color::LIGHTGRAY,
         );
-        draw_3d.draw_cube(Vector3::new(-16.0, 2.5, 0.0), 1.0, 5.0, 32.0, Color::BLUE);
-        draw_3d.draw_cube(Vector3::new(16.0, 2.5, 0.0), 1.0, 5.0, 32.0, Color::LIME);
-        draw_3d.draw_cube(Vector3::new(0.0, 2.5, 16.0), 32.0, 5.0, 1.0, Color::GOLD);
 
         if camera_mode == CameraMode::CAMERA_THIRD_PERSON {
             draw_3d.draw_cube(camera.target, 0.5, 0.5, 0.5, Color::PURPLE);
@@ -119,6 +78,6 @@ fn main() {
         }
 
         //this is the only way to "escape" 3D mode
-        std::mem::drop(draw_3d);
+        // std::mem::drop(draw_3d);
     }
 }
