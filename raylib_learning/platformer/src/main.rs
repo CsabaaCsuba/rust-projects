@@ -4,6 +4,12 @@ use raylib::prelude::*;
 
 const SCREEN_WIDTH: f32 = 800.0;
 const SCREEN_HEIGHT: f32 = 450.0;
+const GRAVITY: f32 = 1.0;
+
+struct Player {
+    position: Vector3,
+
+}
 
 fn main() {
     let (mut rl, thread) = raylib::init()
@@ -23,42 +29,41 @@ fn main() {
     );
     let mut camera_mode: CameraMode = CameraMode::CAMERA_THIRD_PERSON;
 
-    let infobox_color: Color = rl.gui_fade(Color::SKYBLUE, 0.5);
-
     while !rl.window_should_close() {
 
         // rl.update_camera(&mut camera, camera_mode);
-        let movement_vec = {
-            let mut v = Vector3::new(0.0, 0.0, 0.0);
-            if rl.is_key_down(KeyboardKey::KEY_W)
-            {
-                v.x += 1.0;
-            }
-            if rl.is_key_down(KeyboardKey::KEY_S)
-            {
-                v.x -= 1.0;
-            }
-            if rl.is_key_down(KeyboardKey::KEY_D)
-            {
-                v.y += 1.0;
-            }
-            if rl.is_key_down(KeyboardKey::KEY_A)
-            {
-                v.y -= 1.0;
-            }
-            v
-        };
-
-        rl.update_camera_pro(
-            &mut camera,
-            movement_vec,
-            Vector3::new(
-                rl.get_mouse_delta().x * 0.05,
-                rl.get_mouse_delta().y * 0.05,
-                0.0,
-            ),
-            rl.get_mouse_wheel_move() * -2.0,
-        );
+        // let movement_vec = {
+        //     let mut v = Vector3::new(0.0, 0.0, 0.0);
+        //     if rl.is_key_down(KeyboardKey::KEY_W)
+        //     {
+        //         v.x += 1.0;
+        //     }
+        //     if rl.is_key_down(KeyboardKey::KEY_S)
+        //     {
+        //         v.x -= 1.0;
+        //     }
+        //     if rl.is_key_down(KeyboardKey::KEY_D)
+        //     {
+        //         v.y += 1.0;
+        //     }
+        //     if rl.is_key_down(KeyboardKey::KEY_A)
+        //     {
+        //         v.y -= 1.0;
+        //     }
+        //     //todo: implement falling based on collision to the ground
+        //     v
+        // };
+        //
+        // rl.update_camera_pro(
+        //     &mut camera,
+        //     movement_vec,
+        //     Vector3::new(
+        //         rl.get_mouse_delta().x * 0.05,
+        //         rl.get_mouse_delta().y * 0.05,
+        //         0.0,
+        //     ),
+        //     rl.get_mouse_wheel_move() * -2.0,
+        // );
 
         let mut draw_handler: RaylibDrawHandle<'_> = rl.begin_drawing(&thread);
 
@@ -72,10 +77,6 @@ fn main() {
             Color::LIGHTGRAY,
         );
 
-        if camera_mode == CameraMode::CAMERA_THIRD_PERSON {
-            draw_3d.draw_cube(camera.target, 0.5, 0.5, 0.5, Color::PURPLE);
-            draw_3d.draw_cube_wires(camera.target, 0.5, 0.5, 0.5, Color::DARKPURPLE);
-        }
 
         //this is the only way to "escape" 3D mode
         // std::mem::drop(draw_3d);
