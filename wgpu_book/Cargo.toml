@@ -15,6 +15,7 @@ log = "0.4"
 wgpu = "24.0"
 pollster = "0.3"
 bytemuck = { version = "1.16", features = [ "derive" ] }
+anyhow="1.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.6"
@@ -28,6 +29,10 @@ web-sys = { version = "0.3", features = [
     "Element",
 ]}
 
+[dependencies.image]
+version = "0.24"
+default-features = false
+features = ["png", "jpeg"]
 
 
 [[bin]]
