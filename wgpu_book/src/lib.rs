@@ -30,9 +30,9 @@ struct State<'a> {
     num_vertices: Vec<u32>,
     index_buffers: Vec<wgpu::Buffer>,
     num_indices: Vec<u32>,
-    //for handling the texture as a uniform and binding it to the fragment shader
-    diffuse_bind_group: wgpu::BindGroup,
-    diffuse_texture: texture::Texture,
+    //WGPU uses BindGroups for configuration
+    diffuse_bind_groups: Vec<wgpu::BindGroup>,
+    diffuse_textures: Vec<texture::Texture>,
 }
 
 #[repr(C)]
@@ -144,8 +144,8 @@ impl<'a> State<'a> {
         };
 
         surface.configure(&device, &config);
-        let diffuse_bytes = include_bytes!("../astra.jpg");
-        let diffuse_texture = texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png").unwrap();
+        let diffuse_bytes = include_bytes!("../img/astra.jpg");
+        let diffuse_texture = texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "Opel Astra Image").unwrap();
 
 
         let texture_bind_group_layout =
@@ -173,6 +173,10 @@ impl<'a> State<'a> {
                 label: Some("texture_bind_group_layout"),
             });
 
+        surface.configure(&device, &config);
+        let other_diffuse_bytes = include_bytes!("../img/206.jpg");
+        let second_diffuse_texture = texture::Texture::from_bytes(&device, &queue, other_diffuse_bytes, "Peugeot 206 Image").unwrap();
+
         let diffuse_bind_group = device.create_bind_group(
             &wgpu::BindGroupDescriptor {
                 layout: &texture_bind_group_layout,
@@ -190,7 +194,22 @@ impl<'a> State<'a> {
             }
         );
             
-            
+        let second_diffuse_bind_group = device.create_bind_group(
+            &wgpu::BindGroupDescriptor {
+                layout: &texture_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&second_diffuse_texture.view), // CHANGED!
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&second_diffuse_texture.sampler), // CHANGED!
+                    }
+                ],
+                label: Some("diffuse_bind_group"),
+            }
+        );
 
         //the shader for the project (accepts positions and colors)
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -295,8 +314,8 @@ impl<'a> State<'a> {
             index_buffers: vec![index_buffer, triangle_ebo],
             num_indices: vec![num_indices, triangle_indices],
 
-            diffuse_bind_group,
-            diffuse_texture
+            diffuse_bind_groups: vec![diffuse_bind_group, second_diffuse_bind_group],
+            diffuse_textures: vec![diffuse_texture, second_diffuse_texture]
         }
     }
 
@@ -320,7 +339,7 @@ impl<'a> State<'a> {
 
     fn update(&mut self) {}
 
-    fn render(&mut self, element_idx: usize) -> Result<(), wgpu::SurfaceError> {
+    fn render(&mut self, element_idx: usize, texture_idx: usize) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -361,14 +380,14 @@ impl<'a> State<'a> {
             
                 // NEW!
                 render_pass.set_pipeline(&self.render_pipeline);
-                //binding the uniform values at index 0 of uniform values
-                render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+                //binding the texture values at index 0 of the texture parameters
+                render_pass.set_bind_group(0 as u32, &self.diffuse_bind_groups[texture_idx], &[]);
                 render_pass.set_vertex_buffer(0, self.vertex_buffers[element_idx].slice(..));
                 render_pass.set_index_buffer(self.index_buffers[element_idx].slice(..), wgpu::IndexFormat::Uint16); // 1.
 
                 render_pass.draw_indexed(0..self.num_indices[element_idx], 0, 0..1); // 3.
             }
-
+ 
         self.queue.submit(iter::once(encoder.finish()));
         output.present();
 
@@ -437,7 +456,7 @@ pub async fn run() {
     // State::new uses async code, so we're going to wait for it to finish
     let mut state = State::new(&window).await;
     let mut surface_configured = false;
-    let mut rendered_item_idx = 0;
+    let mut texture_idx = 0;
 
     event_loop
         .run(move |event, control_flow| {
@@ -468,7 +487,7 @@ pub async fn run() {
                                     },
                                 ..
                             } => {
-                                rendered_item_idx = match rendered_item_idx {
+                                texture_idx = match texture_idx {
                                     0 => 1,
                                     _ => 0
                                 };
@@ -487,7 +506,8 @@ pub async fn run() {
                                 }
 
                                 state.update();
-                                match state.render(rendered_item_idx) {
+                                //ID of item to be rendered
+                                match state.render(0, texture_idx) {
                                     Ok(_) => {}
                                     // Reconfigure the surface if it's lost or outdated
                                     Err(
