@@ -1,3 +1,0 @@
-goal: this code should be able to draw a rectangle, based on X, Y, Width, and Height
-      the rectangle can get an image as it's texture as well, but it's color can be also set
-    there should be other shapes as well, like triangles (three x, y coordinates given), and circle (x, y, and radius given)

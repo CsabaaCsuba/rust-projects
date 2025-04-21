@@ -47,6 +47,10 @@ features = ["png", "jpeg"]
 name = "tutorial2-surface"
 path = "src/main.rs"
 
+[[bin]]
+name="second"
+path="src/second.rs"
+
 # [[bin]]
 # name = "tutorial2-challenge"
 # path = "src/challenge.rs"
