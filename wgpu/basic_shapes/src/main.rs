@@ -2,5 +2,5 @@ use basic_shapes::run;
 
 fn main(){
     println!("halo");
-    run();
+    pollster::block_on(run());
 }

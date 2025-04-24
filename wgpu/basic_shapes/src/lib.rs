@@ -1,11 +1,15 @@
 use winit::{
     event::*,
-    event_loop::EventLoop,
+    event_loop::{self, EventLoop},
     keyboard::{KeyCode, PhysicalKey},
-    window::WindowBuilder,
-    window::Window,
+    window::{Window, WindowBuilder},
 };
-use wgpu::{Surface, Adapter, Instance, Trace};
+use wgpu;
+use wgpu::*;
+
+fn input(event: &WindowEvent) -> bool {
+    false
+}
 
 pub async fn run() {
     env_logger::init();
@@ -21,7 +25,7 @@ pub async fn run() {
 
     let surface = instance.create_surface(&window).expect("failed to create surface");
 
-    let adapter: Adapter = instance.request_adapter(
+    let adapter: wgpu::Adapter = instance.request_adapter(
         &wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::default(),
             compatible_surface: Some(&surface),
@@ -41,31 +45,67 @@ pub async fn run() {
             },
             label: None,
             memory_hints: Default::default(),
+            trace: wgpu::Trace::Off,
         },
     ).await.unwrap();
 
+    let surface_caps = surface.get_capabilities(&adapter);
+    // Shader code in this tutorial assumes an sRGB surface texture. Using a different
+    // one will result in all the colors coming out darker. If you want to support non
+    // sRGB surfaces, you'll need to account for that when drawing to the frame.
+    let surface_format = surface_caps.formats.iter()
+        .find(|f| f.is_srgb())
+        .copied()
+        .unwrap_or(surface_caps.formats[0]);
+    let config = wgpu::SurfaceConfiguration {
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        format: surface_format,
+        width: size.width,
+        height: size.height,
+        present_mode: surface_caps.present_modes[0],
+        alpha_mode: surface_caps.alpha_modes[0],
+        view_formats: vec![],
+        desired_maximum_frame_latency: 2,
+    };
+
+    let modes = &surface_caps.present_modes;
 
 
 
 
-    event_loop.run(move |event, control_flow| match event {
-        Event::WindowEvent {
-            ref event,
-            window_id,
-        } if &window_id == &window.id() => match event {
-            WindowEvent::CloseRequested
-            | WindowEvent::KeyboardInput {
-                event:
-                    KeyEvent {
-                        state: ElementState::Pressed,
-                        physical_key: PhysicalKey::Code(KeyCode::Escape),
+
+    // run()
+    event_loop.run(move |event, control_flow| {
+        match event {
+            Event::WindowEvent {
+                ref event,
+                window_id,
+            } if window_id == window.id() => if !input(event) { // UPDATED!
+                match event {
+                    WindowEvent::CloseRequested
+                    | WindowEvent::KeyboardInput {
+                        event:
+                            KeyEvent {
+                                state: ElementState::Pressed,
+                                physical_key: PhysicalKey::Code(KeyCode::Escape),
+                                ..
+                            },
                         ..
-                    },
-                ..
-            } => control_flow.exit(),
+                    } => control_flow.exit(),
+                    WindowEvent::Resized(physical_size) => {
+                        resize(*physical_size);
+                    }
+                    _ => {}
+                }
+            }
             _ => {}
-        },
-        _ => {}
+        }
     });
+
+
+    match res {
+        Err(error) => println!("Error happened: {error:?}"),
+        _=>()
+    }
 }
 
