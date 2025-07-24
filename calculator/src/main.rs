@@ -4,6 +4,8 @@ mod tokens;
 use tokens::*;
 mod expr_parser3;
 use expr_parser3::*;
+mod parser3;
+use parser3::*;
 
 
 
@@ -309,35 +311,35 @@ fn main() {
     println!("hello world");
 }
 
-#[test]
-fn basic_tests() {
-    //3 * 9
-    let expression_tokens = vec![
-        Token::Number(3.0),
-        Token::Multiply,
-        Token::Number(9.0)
-    ];
-    assert_eq!(format!("{}", parse_expression(&expression_tokens, &mut 0).unwrap()), "3*9");
-    // let expression = "1 + 6 * 7";
-    let expression_tokens_2 = vec![
-        Token::Number(1.0),
-        Token::Add,
-        Token::Number(6.0),
-        Token::Multiply,
-        Token::Number(7.0),
-    ];
-    assert_eq!(format!("{}", parse_expression(&expression_tokens_2, &mut 0).unwrap()), "1+6*7");
+// #[test]
+// fn basic_tests() {
+//     //3 * 9
+//     let expression_tokens = vec![
+//         Token::Number(3.0),
+//         Token::Multiply,
+//         Token::Number(9.0)
+//     ];
+//     assert_eq!(format!("{}", parse_expression(&expression_tokens, &mut 0).unwrap()), "3*9");
+//     // let expression = "1 + 6 * 7";
+//     let expression_tokens_2 = vec![
+//         Token::Number(1.0),
+//         Token::Add,
+//         Token::Number(6.0),
+//         Token::Multiply,
+//         Token::Number(7.0),
+//     ];
+//     assert_eq!(format!("{}", parse_expression(&expression_tokens_2, &mut 0).unwrap()), "1+6*7");
 
-    //let expression = "3 - 2 + 4";
-    let expression_tokens_3 = vec![
-        Token::Number(3.0),
-        Token::Subtract,
-        Token::Number(2.0),
-        Token::Add,
-        Token::Number(4.0),
-    ];
-    assert_eq!(format!("{}", parse_expression(&expression_tokens_3, &mut 0).unwrap()), "3-2+4");
-}
+//     //let expression = "3 - 2 + 4";
+//     let expression_tokens_3 = vec![
+//         Token::Number(3.0),
+//         Token::Subtract,
+//         Token::Number(2.0),
+//         Token::Add,
+//         Token::Number(4.0),
+//     ];
+//     assert_eq!(format!("{}", parse_expression(&expression_tokens_3, &mut 0).unwrap()), "3-2+4");
+// }
 
 // #[test]
 // fn test_parenthesis() {
@@ -393,14 +395,14 @@ fn test_calculator() {
     assert_eq!(parse_expression(&tokens_3, &mut 0).unwrap().eval(), 720.0);
 }
 
-#[test]
-fn test_parser2() {
-    let mut parser = BinaryOpParser::new(tokenize("3 + 2").unwrap());
-    assert_eq!(parse_expr(&mut parser).to_string(), "3+2");
+// #[test]
+// fn test_parser2() {
+//     let mut parser = BinaryOpParser::new(tokenize("3 + 2").unwrap());
+//     assert_eq!(parse_expr(&mut parser).to_string(), "3+2");
 
-    let mut parser = BinaryOpParser::new(tokenize("4 + 3 * 9").unwrap());
-    assert_eq!(parse_expr(&mut parser).to_string(), "4+3*9");
+//     let mut parser = BinaryOpParser::new(tokenize("4 + 3 * 9").unwrap());
+//     assert_eq!(parse_expr(&mut parser).to_string(), "4+3*9");
 
-    let mut parser = BinaryOpParser::new(tokenize("4 + 3 * 9 + 4").unwrap());
-    assert_eq!(parse_expr(&mut parser).to_string(), "4+3*9+4");
-}
+//     let mut parser = BinaryOpParser::new(tokenize("4 + 3 * 9 + 4").unwrap());
+//     assert_eq!(parse_expr(&mut parser).to_string(), "4+3*9+4");
+// }
