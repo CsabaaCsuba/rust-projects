@@ -1,128 +1,10 @@
 use core::{fmt, panic};
-use std::fmt::Binary;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Token {
-    Number(f64),
-    OpenParenthesis,
-    ClosedParenthesis,
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-}
+mod tokens;
+use tokens::*;
+mod expr_parser2;
+use expr_parser2::*;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum OperationKind {
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-
-    None(f64), //then it will be an exact number
-}
-
-impl OperationKind {
-    fn weight(&self) -> u8 {
-        match self {
-            Self::None(_) => return 0,
-            Self::Add | Self::Subtract => return 1,
-            Self::Multiply | Self::Divide => return 2,
-        }
-    }
-}
-
-
-
-#[derive(Debug, Clone)]
-pub(crate) struct BinaryOp {
-    has_prio: bool,                     //priority = if it has parentheses next to it
-    left_value: Option<Box<BinaryOp>>,
-    right_value: Option<Box<BinaryOp>>,
-    op_type: OperationKind,
-}
-
-impl fmt::Display for BinaryOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.has_prio {
-            write!(f, "(")?;
-        }
-
-        match &self.op_type {
-            OperationKind::None(n) => write!(f, "{n}")?,
-            kind => {
-                if let Some(left) = &self.left_value {
-                    write!(f, "{left}")?;
-                }
-
-                let op_str = match kind {
-                    OperationKind::Add => "+",
-                    OperationKind::Subtract => "-",
-                    OperationKind::Multiply => "*",
-                    OperationKind::Divide => "/",
-                    _ => panic!("invalid operation type between numbers"),
-                };
-
-                write!(f, "{op_str}")?;
-
-                if let Some(right) = &self.right_value {
-                    write!(f, "{right}")?;
-                }
-            }
-        }
-
-        if self.has_prio {
-            write!(f, ")")?;
-        }
-
-        Ok(())
-    }
-}
-
-
-impl BinaryOp {
-    fn new(has_prio: bool, left_val: Option<BinaryOp>, right_val: Option<BinaryOp>, op_type: OperationKind) -> Self {
-        let left_value = match left_val {
-            Some(b_op) => Some(Box::new(b_op)),
-            _ => None
-        };
-        let right_value = match right_val {
-            Some(b_op) => Some(Box::new(b_op)),
-            _ => None
-        };
-        return BinaryOp {has_prio, left_value, right_value, op_type}
-    }
-    fn number(num: f64) -> Self {
-        return BinaryOp { has_prio: false, left_value: None, right_value: None, op_type: OperationKind::None(num) }
-    }
-    fn numbers_op(num1: f64, num2: f64, operation: OperationKind) -> Self {
-        match operation {
-            OperationKind::None(_) => panic!("operationkind cannot be none while also having the 2 operands."),
-            _ => return BinaryOp{has_prio: false, left_value: Some(Box::new(BinaryOp::number(num1))), right_value: Some(Box::new(BinaryOp::number(num2))), op_type: operation},
-        }
-    }
-
-    fn eval(&self) -> f64 {
-        match self.op_type {
-            OperationKind::None(num) => num,
-            real_operation => {
-                let left_op = *self.left_value.clone().unwrap();
-                let left_num = left_op.eval();
-                let right_op = *self.right_value.clone().unwrap();
-                let right_num = right_op.eval();
-
-                match real_operation {
-                    OperationKind::Add => left_num + right_num,
-                    OperationKind::Subtract => left_num - right_num,
-                    OperationKind::Multiply => left_num * right_num,
-                    OperationKind::Divide => left_num / right_num,
-                    _ => panic!("impossible operation found")
-                }
-            }
-        }
-
-    }
-}
 
 
 
@@ -178,17 +60,17 @@ fn parse_expression(expr_tokens: &Vec<Token>, idx: &mut usize) -> Option<BinaryO
             panic!("The last token ({:?}) does not adhere to any rules", expr_tokens[i]);   
         }
     }
-    // if let Some(Token::ClosedParenthesis) = expr_tokens.get(i+1) {
-    //     println!("Current pattern: num");
-    //     if let Token::Number(num) = expr_tokens[i]{
-    //         i += 1;
-    //         return_op = BinaryOp::number(num);
-    //         op_found = true;
-    //     }
-    //     else {
-    //         panic!("The last token ({:?}) does not adhere to any rules", expr_tokens[i]);   
-    //     }
-    // }
+    if let Some(Token::ClosedParenthesis) = expr_tokens.get(i+1) {
+        println!("Current pattern: num");
+        if let Token::Number(num) = expr_tokens[i]{
+            i += 1;
+            return_op = BinaryOp::number(num);
+            op_found = true;
+        }
+        else {
+            panic!("The last token ({:?}) does not adhere to any rules", expr_tokens[i]);   
+        }
+    }
     //checks if the next operation is a simple binary operation
     else if i+2 <= tokens_len && !op_found {
         println!("Current pattern: num + num");
@@ -222,7 +104,7 @@ fn parse_expression(expr_tokens: &Vec<Token>, idx: &mut usize) -> Option<BinaryO
                                 return_op = BinaryOp::new(false, Some(BinaryOp::number(n)), Some(new_expr), op_type);
                                 if let Some(Token::ClosedParenthesis) = expr_tokens.get(i) {
                                     op_found = true;
-                                    if let Some(expr) = &mut return_op.left_value {
+                                    if let Some(expr) = &mut return_op.right_value {
                                         expr.has_prio = true;
                                     }
                                     // i += 1;
@@ -409,7 +291,7 @@ fn parse_expression(expr_tokens: &Vec<Token>, idx: &mut usize) -> Option<BinaryO
     if has_prio && !return_op.has_prio {
         if expr_tokens[i] == Token::ClosedParenthesis {
             println!("Closing parenthesis has been found on the last check.");
-            return_op.has_prio = true;
+            // return_op.has_prio = true;
             i += 1;
         }
         else {
@@ -423,7 +305,7 @@ fn parse_expression(expr_tokens: &Vec<Token>, idx: &mut usize) -> Option<BinaryO
 }
 
 fn main() {
-    let _ = parse_expression(&vec![], &mut 0);
+    // let _ = parse_expression(&vec![Token::Number(1.0)], &mut 0);
     println!("hello world");
 }
 
@@ -458,9 +340,9 @@ fn basic_tests() {
 }
 
 // #[test]
-// fn test_tier_2() {
+// fn test_parenthesis() {
 //     //1+(9-4)
-//     let expression_tokens = vec![
+//     let tokens = vec![
 //         Token::Number(1.0),
 //         Token::Add,
 //         Token::OpenParenthesis,
@@ -469,7 +351,11 @@ fn basic_tests() {
 //         Token::Number(4.0),
 //         Token::ClosedParenthesis,
 //     ];
-//     assert_eq!(format!("{}", parse_expression(&expression_tokens, &mut 0).unwrap()), "1+(9-4)");
+//     assert_eq!(format!("{}", parse_expression(&tokens, &mut 0).unwrap()), "1+(9-4)");
+
+//     //(3 * 9) - 1
+//     let tokens_2 = tokenize("(3 * 9) - 1").unwrap();
+//     assert_eq!(format!("{}", parse_expression(&tokens_2, &mut 0).unwrap()), "(3*9)-1");
 // }
 
 #[test]
@@ -507,6 +393,14 @@ fn test_calculator() {
     assert_eq!(parse_expression(&tokens_3, &mut 0).unwrap().eval(), 720.0);
 }
 
-// fn test_parenthesis() {
-//     todo!()
-// }
+#[test]
+fn test_parser2() {
+    let mut parser = BinaryOpParser::new(tokenize("3 + 2").unwrap());
+    assert_eq!(parse_expr(&mut parser).to_string(), "3+2");
+
+    let mut parser = BinaryOpParser::new(tokenize("4 + 3 * 9").unwrap());
+    assert_eq!(parse_expr(&mut parser).to_string(), "4+3*9");
+
+    let mut parser = BinaryOpParser::new(tokenize("4 + 3 * 9 + 4").unwrap());
+    assert_eq!(parse_expr(&mut parser).to_string(), "4+3*9+4");
+}
