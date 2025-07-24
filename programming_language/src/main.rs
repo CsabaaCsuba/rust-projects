@@ -27,10 +27,12 @@ pub enum MyError {
 
 mod tokens;
 mod codegen;
+mod ast;
+mod pratt_parser;
 use crate::tokens::*;
-use crate::codegen::generate_code;
-
-
+use crate::codegen::*;
+use crate::ast::*;
+use crate::pratt_parser::*;
 
 
 use std::fs;

@@ -1,4 +1,5 @@
 use core::{fmt, panic};
+use std::fmt::Binary;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Token {
@@ -41,6 +42,44 @@ pub(crate) struct BinaryOp {
     op_type: OperationKind,
 }
 
+impl fmt::Display for BinaryOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.has_prio {
+            write!(f, "(")?;
+        }
+
+        match &self.op_type {
+            OperationKind::None(n) => write!(f, "{n}")?,
+            kind => {
+                if let Some(left) = &self.left_value {
+                    write!(f, "{left}")?;
+                }
+
+                let op_str = match kind {
+                    OperationKind::Add => "+",
+                    OperationKind::Subtract => "-",
+                    OperationKind::Multiply => "*",
+                    OperationKind::Divide => "/",
+                    _ => panic!("invalid operation type between numbers"),
+                };
+
+                write!(f, "{op_str}")?;
+
+                if let Some(right) = &self.right_value {
+                    write!(f, "{right}")?;
+                }
+            }
+        }
+
+        if self.has_prio {
+            write!(f, ")")?;
+        }
+
+        Ok(())
+    }
+}
+
+
 impl BinaryOp {
     fn new(has_prio: bool, left_val: Option<BinaryOp>, right_val: Option<BinaryOp>, op_type: OperationKind) -> Self {
         let left_value = match left_val {
@@ -62,31 +101,29 @@ impl BinaryOp {
             _ => return BinaryOp{has_prio: false, left_value: Some(Box::new(BinaryOp::number(num1))), right_value: Some(Box::new(BinaryOp::number(num2))), op_type: operation},
         }
     }
-    fn stringify(&self) -> String {
-        return format!("{{{}, {:#?}, {:#?}, {:?}}}", self.has_prio, self.left_value, self.right_value, self.op_type);
-    }
-}
 
-impl fmt::Display for BinaryOp {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let OperationKind::None(num) = self.op_type {
-            write!(f, "NoOp{{{}}}", num)?
-        }
-        match &self.right_value {
-            Some(right_val) => {
-                match &self.left_value {
-                    Some(left_val) => {
-                        return write!(f, "{{{}, {}, {}, {:?}}}", self.has_prio, left_val.stringify(), right_val.stringify(), self.op_type)
-                    },
-                    None => {write!(f, "No left value found..")}
+    fn eval(&self) -> f64 {
+        match self.op_type {
+            OperationKind::None(num) => num,
+            real_operation => {
+                let left_op = *self.left_value.clone().unwrap();
+                let left_num = left_op.eval();
+                let right_op = *self.right_value.clone().unwrap();
+                let right_num = right_op.eval();
+
+                match real_operation {
+                    OperationKind::Add => left_num + right_num,
+                    OperationKind::Subtract => left_num - right_num,
+                    OperationKind::Multiply => left_num * right_num,
+                    OperationKind::Divide => left_num / right_num,
+                    _ => panic!("impossible operation found")
                 }
-
-            },
-            None => {write!(f, "No right value found..")}
+            }
         }
-        
+
     }
 }
+
 
 
 fn check_binary_fit(tokens_slice: &[Token]) -> Option<BinaryOp>{
@@ -112,32 +149,8 @@ fn check_binary_fit(tokens_slice: &[Token]) -> Option<BinaryOp>{
     return Some(BinaryOp::numbers_op(num1, num2, operator));
 }
 
-fn calculate_op_value(expr: &BinaryOp) -> usize {
-    let mut val: usize =  0;
-    if expr.has_prio {
-        val += 100;
-    }
-    if expr.op_type == OperationKind::Multiply || expr.op_type == OperationKind::Divide {
-        val += 10;
-    }
-    if expr.op_type == OperationKind::Add || expr.op_type == OperationKind::Subtract {
-        val += 1;
-    }
 
-    return val;
-}
-
-fn check_pattern_fit(checker: &[Token], checked_against: &[Token]) -> bool {
-    assert_eq!(checker.len(), checked_against.len());
-    for (idx, t) in checker.iter().enumerate(){
-        if *t != checked_against[idx] {
-            return false;
-        }
-    }
-    true
-}
-
-unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<BinaryOp> {
+fn parse_expression(expr_tokens: &Vec<Token>, idx: &mut usize) -> Option<BinaryOp> {
     println!("->recursive call started");
     let mut i = *idx;
     let tokens_len = expr_tokens.len();
@@ -387,8 +400,6 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
             other_val => panic!("unexpected value when trying to parse right-side value of binary expression: {other_val:?}"),
         }
     }
-
-    
     
     if !op_found {
         println!("unexpected token: {:?}", expr_tokens.get(i));
@@ -406,25 +417,25 @@ unsafe fn parse_expression(expr_tokens: &Vec<Token>, idx: *mut usize) -> Option<
         }  
     }
 
-    
-    
     *idx = i; //this might cause bugs since recursive calls will set *idx forward
 
     return Some(return_op);
 }
 
 fn main() {
-    // let expression = "5 + (3*2)";
+    let _ = parse_expression(&vec![], &mut 0);
+    println!("hello world");
+}
+
+#[test]
+fn basic_tests() {
+    //3 * 9
     let expression_tokens = vec![
-        Token::Number(5.0),
-        Token::Add,
-        Token::OpenParenthesis,
         Token::Number(3.0),
         Token::Multiply,
-        Token::Number(2.0),
-        Token::ClosedParenthesis,
+        Token::Number(9.0)
     ];
-
+    assert_eq!(format!("{}", parse_expression(&expression_tokens, &mut 0).unwrap()), "3*9");
     // let expression = "1 + 6 * 7";
     let expression_tokens_2 = vec![
         Token::Number(1.0),
@@ -432,9 +443,8 @@ fn main() {
         Token::Number(6.0),
         Token::Multiply,
         Token::Number(7.0),
-        // Token::Divide,
-        // Token::Number(2.0),
     ];
+    assert_eq!(format!("{}", parse_expression(&expression_tokens_2, &mut 0).unwrap()), "1+6*7");
 
     //let expression = "3 - 2 + 4";
     let expression_tokens_3 = vec![
@@ -444,50 +454,59 @@ fn main() {
         Token::Add,
         Token::Number(4.0),
     ];
+    assert_eq!(format!("{}", parse_expression(&expression_tokens_3, &mut 0).unwrap()), "3-2+4");
+}
 
-    //let expression = "9 + 8 - 3 + 4";
-    let expression_tokens_4 = vec![
-        Token::Number(9.0),
-        Token::Add,
-        Token::Number(8.0),
-        Token::Subtract,
+// #[test]
+// fn test_tier_2() {
+//     //1+(9-4)
+//     let expression_tokens = vec![
+//         Token::Number(1.0),
+//         Token::Add,
+//         Token::OpenParenthesis,
+//         Token::Number(9.0),
+//         Token::Subtract,
+//         Token::Number(4.0),
+//         Token::ClosedParenthesis,
+//     ];
+//     assert_eq!(format!("{}", parse_expression(&expression_tokens, &mut 0).unwrap()), "1+(9-4)");
+// }
+
+#[test]
+fn test_calculator() {
+    //3*3
+    let tokens = vec![
         Token::Number(3.0),
-        Token::Add,
-        Token::Number(4.0),
+        Token::Multiply,
+        Token::Number(3.0)
     ];
+    assert_eq!(parse_expression(&tokens, &mut 0).unwrap().eval(), 9.0);
 
-    //let expression = "9 + (8 - 3)";
-    let expression_tokens_5 = vec![
-        Token::Number(9.0),
-        Token::Add,
-        Token::OpenParenthesis,
-        Token::Number(8.0),
-        Token::Subtract,
-        Token::Number(3.0),
-        Token::ClosedParenthesis,
-    ];
-
-    // let expression = "5 + 2 * 3 - 4";
-    let expression_tokens_6 = vec![
+    //5 + 4 * 3
+    let tokens_2 = vec![
         Token::Number(5.0),
         Token::Add,
+        Token::Number(4.0),
+        Token::Multiply,
+        Token::Number(3.0)
+    ];
+    assert_eq!(parse_expression(&tokens_2, &mut 0).unwrap().eval(), 17.0);
+
+    //2 * 3 * 4 * 5 * 6
+    let tokens_3 = vec![
         Token::Number(2.0),
         Token::Multiply,
         Token::Number(3.0),
-        Token::Subtract,
+        Token::Multiply,
         Token::Number(4.0),
+        Token::Multiply,
+        Token::Number(5.0),
+        Token::Multiply,
+        Token::Number(6.0),
     ];
-
-    let mut i: usize = 0;
-    unsafe {
-        // let parsed_expr = parse_expression(&expression_tokens, &mut i);
-        // println!("parsed expression: {parsed_expr:?}");
-        // let parsed_expr_2 = parse_expression(&expression_tokens_2, &mut i);
-        // println!("parsed expression: {parsed_expr_2:?}");
-        i = 0;
-        let parsed_expr_6 = parse_expression(&expression_tokens_6, &mut i).unwrap();
-        println!("parsed expression: {parsed_expr_6:?}");
-    }
-    
-
+    assert_eq!(parse_expression(&tokens_3, &mut 0).unwrap().eval(), 720.0);
 }
+
+// fn test_parenthesis() {
+//     todo!()
+// }
