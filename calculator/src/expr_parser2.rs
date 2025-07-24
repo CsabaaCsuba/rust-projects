@@ -140,6 +140,13 @@ impl BinaryOpParser {
         self.idx += 1;
     }
 
+    pub fn check_back(&mut self, check_against: Token) -> bool{
+        if self.tokens.len() < self.idx - 1 {
+            return self.tokens[self.idx-1] == check_against;
+        }
+        false
+    }
+
     pub fn progress(&mut self, amount: usize) {
         self.idx += amount;
     }
@@ -162,13 +169,6 @@ pub fn parse_expr(parser: &mut BinaryOpParser) -> BinaryOp {
     //expected: - sign, or a number, or (
     match parser.get_token() {
         Some(Token::Number(n)) => {return_op.op_type = OperationKind::None(n); parsed_left_number = n},
-        Some(Token::Subtract) => {
-            parser.next();
-            match parser.get_token() {
-                Some(Token::Number(n)) => {return_op.op_type = OperationKind::None(-n); parsed_left_number = -n},
-                _ => panic!("Expected number after negative sign")
-            }
-        },
         Some(Token::OpenParenthesis) => {
             //this will have operational precedence anyway
             parser.next();
@@ -181,7 +181,28 @@ pub fn parse_expr(parser: &mut BinaryOpParser) -> BinaryOp {
                 _ => panic!("Closed parenthesis not found in it's place")
             }
         }
-        Some(t) => panic!("Invalid token: {t:?}"),
+        Some(other_token) => {
+            //if the token is subtract, and the previous one wasn't a number, OR it's any other addition operation, it must be
+            //an ending * 3 or something like that. But by implementing the function this way, it's validity has to be checked outside 
+            if (other_token == Token::Subtract && !parser.check_back(Token::Number(0.0))) ||
+                other_token == Token::Add ||
+                other_token == Token::Divide ||
+                other_token == Token::Multiply {
+                let next_token = parser.next();
+                return BinaryOp::new(false, None, Some(BinaryOp::number(0.0)), match_op_kind(other_token));
+            }
+            //Else, it might actually be a negative number
+            else if other_token == Token::Subtract && parser.check_back(Token::Number(0.0)){
+                parser.next();
+                match parser.get_token() {
+                    Some(Token::Number(n)) => {return_op.op_type = OperationKind::None(-n); parsed_left_number = -n},
+                    _ => panic!("Expected number after negative sign")
+                }
+            }
+            else {
+                panic!("invalid token {other_token:?}")
+            }  
+        },
         None => panic!("No token found at all")
     }
 
