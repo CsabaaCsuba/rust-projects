@@ -1,12 +1,17 @@
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Token {
-    Number(f64),
-    OpenParenthesis,
-    ClosedParenthesis,
-    Add,
-    Subtract,
+pub enum Operator {
+    Plus,
+    Minus,
     Multiply,
     Divide,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Token {
+    Number(f64),
+    Op(Operator),
+    OpenParenthesis,
+    ClosedParenthesis,
 }
 
 pub fn tokenize(input: &str) -> Result<Vec<Token>, String> {
@@ -37,19 +42,19 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, String> {
             }
             '+' => {
                 chars.next();
-                tokens.push(Token::Add);
+                tokens.push(Token::Op(Operator::Plus));
             }
             '-' => {
                 chars.next();
-                tokens.push(Token::Subtract);
+                tokens.push(Token::Op(Operator::Minus));
             }
             '*' => {
                 chars.next();
-                tokens.push(Token::Multiply);
+                tokens.push(Token::Op(Operator::Multiply));
             }
             '/' => {
                 chars.next();
-                tokens.push(Token::Divide);
+                tokens.push(Token::Op(Operator::Divide));
             }
             '(' => {
                 chars.next();
@@ -72,10 +77,10 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, String> {
 fn test1() {
     let tokens = vec![
         Token::Number(1.0),
-        Token::Add,
+        Token::Op(Operator::Plus),
         Token::OpenParenthesis,
         Token::Number(9.0),
-        Token::Subtract,
+        Token::Op(Operator::Minus),
         Token::Number(4.0),
         Token::ClosedParenthesis,
     ];

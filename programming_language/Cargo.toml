@@ -4,3 +4,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+# pratt_parser = {path = "../pratt_parser"} #todo: change the folder / project config name

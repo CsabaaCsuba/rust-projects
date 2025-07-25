@@ -1,7 +1,7 @@
-use crate::tokens::Token;
+use crate::tokens::{Token, Operator};
 
 #[derive(Debug)]
-enum Expr {
+pub enum Expr {
     Number(f64),
     BinaryOp {
         op: Token,
@@ -11,8 +11,8 @@ enum Expr {
 }
 
 pub struct Parser {
-    tokens: Vec<Token>,
-    pos: usize,
+    pub tokens: Vec<Token>,
+    pub pos: usize,
 }
 
 impl Parser {
@@ -34,8 +34,8 @@ impl Parser {
         self.pos >= self.tokens.len()
     }
 
-    pub fn parse_expression(&mut self, rbp: u8) -> Expr {
-        let mut left = self.nud();
+    pub fn parse_expression(&mut self, rbp: u8) -> Result<Expr, String> {
+        let mut left = self.nud()?;
 
         while !self.is_at_end() {
             if let Some(current_token) = self.current() {
@@ -46,7 +46,7 @@ impl Parser {
                     
                     let op = current_token;
                     self.advance();
-                    let right = self.parse_expression(self.rbp(op));
+                    let right = self.parse_expression(self.rbp(op))?;
                     left = Expr::BinaryOp {
                         op,
                         left: Box::new(left),
@@ -60,45 +60,45 @@ impl Parser {
             }
         }
 
-        left
+        Ok(left)
     }
 
-    fn nud(&mut self) -> Expr {
+    fn nud(&mut self) -> Result<Expr, String> {
         if self.is_at_end() {
-            panic!("Unexpected end of input");
+            return Err("Unexpected end of input".to_string());
         }
 
         match self.current().unwrap() {
             Token::Number(n) => {
                 self.advance();
-                Expr::Number(n)
+                Ok(Expr::Number(n))
             }
-            Token::Subtract => {
+            Token::Op(Operator::Minus) => {
                 self.advance();
-                let expr = self.parse_expression(100);
-                Expr::BinaryOp {
-                    op: Token::Subtract,
+                let expr = self.parse_expression(100)?;
+                Ok(Expr::BinaryOp {
+                    op: Token::Op(Operator::Minus),
                     left: Box::new(Expr::Number(0.0)),
                     right: Box::new(expr),
-                }
+                })
             }
             Token::OpenParenthesis => {
                 self.advance();
-                let expr = self.parse_expression(0);
+                let expr = self.parse_expression(0)?;
                 if self.current() != Some(Token::ClosedParenthesis) {
-                    panic!("Expected ')'");
+                    return Err("Expected ')'".to_string());
                 }
                 self.advance();
-                expr
+                Ok(expr)
             }
-            token => panic!("Unexpected token in nud: {:?}", token),
+            token => Err(format!("Unexpected token in nud: {:?}", token)),
         }
     }
 
     fn lbp(&self, token: Token) -> Option<u8> {
         match token {
-            Token::Add | Token::Subtract => Some(10),
-            Token::Multiply | Token::Divide => Some(20),
+            Token::Op(Operator::Plus) | Token::Op(Operator::Minus) => Some(10),
+            Token::Op(Operator::Multiply) | Token::Op(Operator::Divide) => Some(20),
             Token::ClosedParenthesis => None,
             Token::Number(_) | Token::OpenParenthesis => None,
         }
@@ -106,31 +106,31 @@ impl Parser {
 
     fn rbp(&self, token: Token) -> u8 {
         match token {
-            Token::Add | Token::Subtract => 10,
-            Token::Multiply | Token::Divide => 20,
+            Token::Op(Operator::Plus) | Token::Op(Operator::Minus) => 10,
+            Token::Op(Operator::Multiply) | Token::Op(Operator::Divide) => 20,
             _ => 0,
         }
     }
 }
 
 impl Expr {
-    pub fn resolve(&self) -> f64 {
+    pub fn resolve_numeric(&self) -> Option<f64> {
         match self {
-            Expr::Number(n) => *n,
+            Expr::Number(n) => Some(*n),
             Expr::BinaryOp { op, left, right } => {
-                let l = left.resolve();
-                let r = right.resolve();
+                let l = left.resolve_numeric()?;
+                let r = right.resolve_numeric()?;
                 match op {
-                    Token::Add => l + r,
-                    Token::Subtract => l - r,
-                    Token::Multiply => l * r,
-                    Token::Divide => {
+                    Token::Op(Operator::Plus) => Some(l + r),
+                    Token::Op(Operator::Minus) => Some(l - r),
+                    Token::Op(Operator::Multiply) => Some(l * r),
+                    Token::Op(Operator::Divide) => {
                         if r == 0.0 {
-                            panic!("Division by zero");
+                            return None;
                         }
-                        l / r
+                        Some(l / r)
                     }
-                    _ => panic!("Invalid binary operator: {:?}", op),
+                    _ => panic!("Unreachable branch. Invalid binary operator: {:?}", op),
                 }
             }
         }
@@ -146,8 +146,8 @@ mod tests {
         let tokens = tokenize(input).unwrap();
         println!("Tokens: {:?}", tokens); // Debug print to see what tokens are produced
         let mut parser = Parser::new(tokens);
-        let expr = parser.parse_expression(0);
-        expr.resolve()
+        let expr = parser.parse_expression(0).expect("Invalid input");
+        expr.resolve_numeric().expect("Division by zero")
     }
 
     #[test]
@@ -179,5 +179,11 @@ mod tests {
     #[should_panic(expected = "Division by zero")]
     fn test_divide_by_zero() {
         eval("4 / 0");
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid input")]
+    fn test_invalid() {
+        eval(" / 0");
     }
 }

@@ -27,12 +27,10 @@ pub enum MyError {
 
 mod tokens;
 mod codegen;
-mod ast;
-mod pratt_parser;
 use crate::tokens::*;
 use crate::codegen::*;
-use crate::ast::*;
-use crate::pratt_parser::*;
+mod pratt_parser;
+use pratt_parser::*;
 
 
 use std::fs;
@@ -40,6 +38,7 @@ use std::fs::File;
 use std::io::{self, Write};
 use std::process::Command;
 use std::path::Path;
+
 fn main() {
     let file_contents = fs::read_to_string("src/code.c").expect("src/code.c not found...");
     let tokens = tokenize(file_contents);
