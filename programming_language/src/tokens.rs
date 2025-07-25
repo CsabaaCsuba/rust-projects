@@ -100,6 +100,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
         let ch = chars[i];
 
         match ch {
+            //Whitespaces and comments will be ignored for now, since they just reduce performance
             // Whitespace (excluding newlines)
             ' ' | '\t' | '\r' => {
                 // output.push(Token::Whitespace);

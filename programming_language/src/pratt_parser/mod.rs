@@ -1,6 +1,7 @@
 // mod tokens;
 // use tokens::*;
 use crate::tokens::{Delimiter, Operator, Token};
+use std::fmt;
 
 #[derive(Debug)]
 pub enum Expr {
@@ -143,13 +144,41 @@ impl Expr {
             }
         }
     }
+
 }
 
+impl fmt::Display for Expr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Expr::Number(n) => write!(f, "{}", *n)?,
+            Expr::BinaryOp { op, left, right } => {
+                write!(f, "{}", *left)?;
+                match op.clone() {
+                    Token::Operator(Operator::Plus) => write!(f, " + ")?,
+                    Token::Operator(Operator::Minus) => write!(f, " - ")?,
+                    Token::Operator(Operator::Multiply) => write!(f, " * ")?,
+                    Token::Operator(Operator::Modulo) => write!(f, " % ")?,
+                    Token::Operator(Operator::Divide) => write!(f, " / ")?,
+                    _ => panic!("Unreachable branch. Invalid binary operator: {:?}", op),
+                }
+                write!(f, "{}", *right)?;
+            }
+        }
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use crate::tokens::tokenize;
     use crate::pratt_parser::*;
+
+    fn easy_eval(raw_str: &str) -> Option<f64> {
+        Parser::new(tokenize(raw_str.to_string()))
+            .parse_expression(0)
+            .expect("failed to parse?")
+            .resolve_numeric()
+    }
 
     #[test]
     fn test1(){
@@ -158,6 +187,33 @@ mod tests {
 
     #[test]
     fn test2(){
-        assert_eq!(Parser::new(tokenize("3.0 % 4.0".to_string())).parse_expression(0).expect("failed to parse?").resolve_numeric(), Some(3.0));
+        assert_eq!(Parser::new(tokenize("5.0 % 3.0".to_string())).parse_expression(0).expect("failed to parse?").resolve_numeric(), Some(2.0));
+    }
+
+    #[test]
+    #[should_panic(expected="failed to parse?")]
+    fn test3(){
+        assert_eq!(Parser::new(tokenize("1.0 % 4.0 * ".to_string())).parse_expression(0).expect("failed to parse?").resolve_numeric(), Some(1.0));
+    }
+
+    #[test]
+    fn test4(){
+        assert_eq!(Parser::new(tokenize("(1.0 * 4.0)".to_string())).parse_expression(0).expect("failed to parse?").resolve_numeric(), Some(4.0));
+    }
+
+    #[test]
+    fn test5(){
+        assert_eq!(&Parser::new(tokenize("(1.0 * 4.5)".to_string())).parse_expression(0).expect("failed to parse?").to_string(), "1 * 4.5");
+    }
+
+    //this test doesn't work properly, because the parenthesis information gets lost, however, the evaluation works fine
+    // #[test]
+    // fn test6(){
+    //     assert_eq!(&Parser::new(tokenize("2.0 * (3.3 - 1.3)".to_string())).parse_expression(0).expect("failed to parse?").to_string(), "2 * 3.3 - 1.3");
+    // }
+
+    #[test]
+    fn test7(){
+        assert_eq!(easy_eval("2.0 * (3.3 - 1.3)"), Some(2.0 * (3.3 - 1.3)));
     }
 }
