@@ -1,5 +1,6 @@
-mod tokens;
-use tokens::*;
+// mod tokens;
+// use tokens::*;
+use crate::tokens::{Delimiter, Operator, Token};
 
 #[derive(Debug)]
 pub enum Expr {
@@ -22,7 +23,7 @@ impl Parser {
     }
 
     fn current(&self) -> Option<Token> {
-        self.tokens.get(self.pos).copied()
+        self.tokens.get(self.pos).cloned()
     }
 
     fn advance(&mut self) {
@@ -40,14 +41,14 @@ impl Parser {
 
         while !self.is_at_end() {
             if let Some(current_token) = self.current() {
-                if let Some(bp) = self.lbp(current_token) {
+                if let Some(bp) = self.lbp(current_token.clone()) {
                     if bp <= rbp {
                         break;
                     }
                     
                     let op = current_token;
                     self.advance();
-                    let right = self.parse_expression(self.rbp(op))?;
+                    let right = self.parse_expression(self.rbp(op.clone()))?;
                     left = Expr::BinaryOp {
                         op,
                         left: Box::new(left),
@@ -70,23 +71,23 @@ impl Parser {
         }
 
         match self.current().unwrap() {
-            Token::Number(n) => {
+            Token::FloatLiteral(n) => {
                 self.advance();
                 Ok(Expr::Number(n))
             }
-            Token::Op(Operator::Minus) => {
+            Token::Operator(Operator::Minus) => {
                 self.advance();
                 let expr = self.parse_expression(100)?;
                 Ok(Expr::BinaryOp {
-                    op: Token::Op(Operator::Minus),
+                    op: Token::Operator(Operator::Minus),
                     left: Box::new(Expr::Number(0.0)),
                     right: Box::new(expr),
                 })
             }
-            Token::OpenParenthesis => {
+            Token::Delimiter(Delimiter::LeftParen) => {
                 self.advance();
                 let expr = self.parse_expression(0)?;
-                if self.current() != Some(Token::ClosedParenthesis) {
+                if self.current() != Some(Token::Delimiter(Delimiter::RightParen)) {
                     return Err("Expected ')'".to_string());
                 }
                 self.advance();
@@ -98,17 +99,17 @@ impl Parser {
 
     fn lbp(&self, token: Token) -> Option<u8> {
         match token {
-            Token::Op(Operator::Plus) | Token::Op(Operator::Minus) => Some(10),
-            Token::Op(Operator::Multiply) | Token::Op(Operator::Divide) => Some(20),
-            Token::ClosedParenthesis => None,
-            Token::Number(_) | Token::OpenParenthesis => None,
+            Token::Operator(Operator::Plus) | Token::Operator(Operator::Minus) => Some(10),
+            Token::Operator(Operator::Multiply) | Token::Operator(Operator::Divide) | Token::Operator(Operator::Modulo) => Some(20),
+            Token::Delimiter(Delimiter::RightParen) => None,
+            Token::FloatLiteral(_) | Token::Delimiter(Delimiter::LeftParen) | _ => None,
         }
     }
 
     fn rbp(&self, token: Token) -> u8 {
         match token {
-            Token::Op(Operator::Plus) | Token::Op(Operator::Minus) => 10,
-            Token::Op(Operator::Multiply) | Token::Op(Operator::Divide) => 20,
+            Token::Operator(Operator::Plus) | Token::Operator(Operator::Minus) => 10,
+            Token::Operator(Operator::Multiply) | Token::Operator(Operator::Divide) | Token::Operator(Operator::Modulo) => 20,
             _ => 0,
         }
     }
@@ -122,10 +123,16 @@ impl Expr {
                 let l = left.resolve_numeric()?;
                 let r = right.resolve_numeric()?;
                 match op {
-                    Token::Op(Operator::Plus) => Some(l + r),
-                    Token::Op(Operator::Minus) => Some(l - r),
-                    Token::Op(Operator::Multiply) => Some(l * r),
-                    Token::Op(Operator::Divide) => {
+                    Token::Operator(Operator::Plus) => Some(l + r),
+                    Token::Operator(Operator::Minus) => Some(l - r),
+                    Token::Operator(Operator::Multiply) => Some(l * r),
+                    Token::Operator(Operator::Modulo) => {
+                        if r == 0.0 {
+                            return None;
+                        }
+                        Some( l % r)
+                    },
+                    Token::Operator(Operator::Divide) => {
                         if r == 0.0 {
                             return None;
                         }
@@ -135,5 +142,22 @@ impl Expr {
                 }
             }
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::tokens::tokenize;
+    use crate::pratt_parser::*;
+
+    #[test]
+    fn test1(){
+        assert_eq!(Parser::new(tokenize("3.0 + 3.0".to_string())).parse_expression(0).expect("failed to parse?").resolve_numeric(), Some(6.0));
+    }
+
+    #[test]
+    fn test2(){
+        assert_eq!(Parser::new(tokenize("3.0 % 4.0".to_string())).parse_expression(0).expect("failed to parse?").resolve_numeric(), Some(3.0));
     }
 }

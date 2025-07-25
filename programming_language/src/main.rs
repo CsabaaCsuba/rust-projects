@@ -6,6 +6,9 @@ Type -> IDENTIFIER(with value)+OPEN_PAREN+CLOSE_PAREN+OPEN_CURLY_BRACES
 KEYWORD (return) -> expression
 expression -> int literal
 
+Type -> Identifier + Assignment (= sign) + Expression + semicolon
+Expression type will equal the Type 
+
 -> It will be completely compatible with C
 -> it main will map:
 int main(){
