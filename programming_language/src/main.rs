@@ -48,12 +48,13 @@ use std::path::Path;
 
 pub enum AST {
     FunctionDec {
-        label: &'static str,
+        label: String,
         program_lines: Vec<AST>,
     },
 
-    VariableDec{
-        type_: Keyword,
+    VariableAssignment{
+        name: String,
+        type_: tokens::Keyword,
         value: Expr,
     },
 
@@ -69,7 +70,7 @@ pub struct ASTParser {
     
 }
 
-use tokens::{Token::*, Keyword::*, Operator::*, Delimiter::*};
+use tokens::*;
 
 //won't use traits since those are slow
 impl ASTParser {
@@ -87,36 +88,89 @@ impl ASTParser {
         }
     }
 
+    fn peek_next(&mut self) -> Option<Token> {
+        if self.pos + 1 < self.tokens.len() {
+            return self.tokens.get(self.pos+1).cloned();
+        }
+        None
+    }
+
     fn is_at_end(&self) -> bool {
         self.pos >= self.tokens.len()
     }
 
-    fn parse_params(tokens: &Vec<Token>) -> Result<AST, String> {
-
+    fn next_semicolon_idx(&self) -> Option<usize> {
+        let idx = self.pos;
+        for i in idx..self.tokens.len(){
+            if self.tokens[i] == Token::Delimiter(Delimiter::Semicolon){
+                return Some(i)
+            }
+        }
+        None
     }
 
-    fn generate_ast(&mut self, tokens: Vec<Token>) -> Result<AST, String> {
+    fn parse_function(&mut self, tokens: &Vec<Token>, type_: tokens::Keyword) -> Result<AST, String> {
+        //currently, the caller should be at the left parenthesis
+        todo!()
+    }
+
+    fn parse_variable(&mut self, type_: Keyword, name: &str) -> Result<AST, String> {
+        //the caller should be after the assignment operator
+        let is_ptr = match self.peek_next() {
+            Some(Token::Operator(Operator::Multiply)) => true,
+            _ => false,
+        };
+        let syntax_tree;
+        if is_ptr {
+            panic!("pointer variables aren't implemented yet");
+        }
+        match type_ {
+            tokens::Keyword::Int | tokens::Keyword::Float => {
+                let statement_ending = match self.next_semicolon_idx() {
+                    Some(n) => n,
+                    None => return Err("No ; found after variable assignment".to_string())
+                };
+                let new_arr = Vec::from(&self.tokens[self.pos..statement_ending]);
+                let mut parser = ExprParser::new(new_arr);
+                let expr = parser.parse_expression(0)?;
+                syntax_tree = AST::VariableAssignment { type_, name: name.to_string(), value: expr };
+
+                return Ok(syntax_tree);
+            },
+
+            _ => return Err("This isn't a valid keyword for a variable".to_string())
+        }
+    }
+
+    fn generate_ast(&mut self) -> Result<AST, String> {
         match self.current() {
-            Some(Keyword(Void)) => {
+            Some(Token::Keyword(type_)) => {
                 self.advance();
                 match self.current() {
-                    Some(Identifier(name)) => {
+                    Some(Token::Identifier(name)) => {
                         self.advance();
                         match self.current() {
                             //it's a variable assignment
-                            Some(Equal) => {
+                            Some(Token::Operator(Operator::Assign)) => {
                                 //parse_params could handle the variable names (if it's a multiple parameter declaration)
                                 //todo: parse the = sign, and the expression / array statement after it
+                                let parsed_ast = self.parse_variable(type_, &name)?;
+                                return Ok(parsed_ast);
                             },
                             //it's a function (call or declaration)
-                            Some(LeftParen) => {
+                            Some(Token::Delimiter(Delimiter::LeftParen)) => {
                                 //parse_params will handle the parameters the function was called with (if it's a call)
                                 panic!("Function calls aren't implemented yet")
                             }
+
+                            _ => panic!("Unimplemented")
                         }
                     }
+
+                    _ => panic!("Unimplemented 2")
                 }
             },
+            _ => panic!("Unimplemented 3")
 
         }
     }
