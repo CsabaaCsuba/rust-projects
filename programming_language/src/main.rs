@@ -47,9 +47,25 @@ use std::process::Command;
 use std::path::Path;
 
 pub enum AST {
+    ProgramBlock {
+        statements: Vec<AST>,
+    },
+
+    VariableDec {
+        label: String,
+        type_: tokens::Keyword,
+    },
+
     FunctionDec {
         label: String,
-        program_lines: Vec<AST>,
+        return_type: tokens::Keyword,
+        params: Vec<AST>,
+        statement_block: Option<Box<AST>>, //can only be a ProgramBlock
+    },
+
+    FunctionCall {
+        label: String,
+        params: Vec<Token>, //int literals or variable identifiers for now
     },
 
     VariableAssignment{
@@ -58,6 +74,9 @@ pub enum AST {
         value: Expr,
     },
 
+    Return {
+        expr: Option<Box<AST>>
+    },
 
 }
 
@@ -66,8 +85,6 @@ use AST::*;
 pub struct ASTParser {
     pub tokens: Vec<Token>,
     pub pos: usize,
-
-    
 }
 
 use tokens::*;
@@ -99,22 +116,76 @@ impl ASTParser {
         self.pos >= self.tokens.len()
     }
 
-    fn next_semicolon_idx(&self) -> Option<usize> {
+
+
+    fn next_idx_of(&self, custom_token: Token) -> Option<usize> {
         let idx = self.pos;
         for i in idx..self.tokens.len(){
-            if self.tokens[i] == Token::Delimiter(Delimiter::Semicolon){
+            if self.tokens[i] == custom_token{
                 return Some(i)
             }
         }
         None
     }
 
-    fn parse_function(&mut self, tokens: &Vec<Token>, type_: tokens::Keyword) -> Result<AST, String> {
+
+    fn parse_function_dec(&mut self, type_: tokens::Keyword) -> Result<AST, String> {
         //currently, the caller should be at the left parenthesis
-        todo!()
+        
+        let mut params = Vec::new();
+        let mut expect_param = false;
+        //todo: collect all the function declaration parameters
+        loop {
+            self.advance();
+            match self.current() {
+                Some(Token::Keyword(type_)) => {
+                    self.advance();
+                    match self.current() {
+                        Some(Token::Identifier(var_name)) => {
+                            params.push(AST::VariableDec { label: var_name, type_: type_ });
+                            expect_param = false;
+                            // self.advance();
+                            // match self.current() {
+                            //     Some(Token::Delimiter(Delimiter::Colon)) => continue,
+                            //     Some(Token::Delimiter(Delimiter::RightParen)) => break,
+                            //     _ => return Err("Invalid token found after variable..".to_string())
+                            // }
+                        }
+                        _ => return Err("Parameter name not found after type declaration".to_string())
+                    }
+                }
+                Some(Token::Delimiter(Delimiter::Colon)) => {
+                    if expect_param {
+                        return Err("multiple \",\" characters found, but no parameter declarations after them".to_string())
+                    }
+                    else {
+                        expect_param = true
+                    }
+                },
+                Some(Token::Delimiter(Delimiter::RightParen)) => {
+                    if expect_param {
+                        return Err(", found, but no parameter declaration after it".to_string())
+                    }
+                    break;
+                }
+                Some(other) => return Err(format!("Expected \")\", or a type, found {other:?}")),
+                None => return Err("Function declaration missing \")\"".to_string())
+            }
+        }
+
+        self.advance();
+        //todo: implement forward declaration later as well
+        match self.current() {
+            Some(Token::Delimiter(Delimiter::LeftBrace)) => (),
+            other => return Err(format!("Expected \"{{\", found {other:?}"))
+        }        
+        loop {
+
+        }
+
     }
 
-    fn parse_variable(&mut self, type_: Keyword, name: &str) -> Result<AST, String> {
+    fn parse_variable_dec(&mut self, type_: Keyword, name: &str) -> Result<AST, String> {
         //the caller should be after the assignment operator
         let is_ptr = match self.peek_next() {
             Some(Token::Operator(Operator::Multiply)) => true,
@@ -126,7 +197,7 @@ impl ASTParser {
         }
         match type_ {
             tokens::Keyword::Int | tokens::Keyword::Float => {
-                let statement_ending = match self.next_semicolon_idx() {
+                let statement_ending = match self.next_idx_of(Token::Delimiter(Delimiter::Semicolon)) {
                     Some(n) => n,
                     None => return Err("No ; found after variable assignment".to_string())
                 };
@@ -154,13 +225,14 @@ impl ASTParser {
                             Some(Token::Operator(Operator::Assign)) => {
                                 //parse_params could handle the variable names (if it's a multiple parameter declaration)
                                 //todo: parse the = sign, and the expression / array statement after it
-                                let parsed_ast = self.parse_variable(type_, &name)?;
+                                let parsed_ast = self.parse_variable_dec(type_, &name)?;
                                 return Ok(parsed_ast);
                             },
                             //it's a function (call or declaration)
                             Some(Token::Delimiter(Delimiter::LeftParen)) => {
                                 //parse_params will handle the parameters the function was called with (if it's a call)
-                                panic!("Function calls aren't implemented yet")
+                                let parsed_ast = self.parse_function_dec(type_)?;
+                                return Ok(parsed_ast);
                             }
 
                             _ => panic!("Unimplemented")
