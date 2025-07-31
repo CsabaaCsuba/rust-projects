@@ -76,42 +76,16 @@ pub fn variable_assignment(assignment: &AST, variable_count: usize) -> Result<St
 
 pub fn function_declaration(function: &AST, caller_variable_count: usize) -> Result<String, String> {
     let mut raw_asm = String::new();
-    let mut total_variable_space = 0;
+    let mut total_parameter_size = 0;
+    let mut variable_size_sum = 0;
     
     match function {
         FunctionDec { label, return_type, params, statement_block } => {
             raw_asm += &format!("{}:\n", label);
             raw_asm += "\tpush rbp\n"; //saves the current frame pointer to the stack
             raw_asm += "\tmov rbp, rsp\n"; //the new frame pointer becomes the stack pointer
-            //if there are less than 7 variables, the variable values will only get placed in registers from the register list.
-            //more than 7 parameters will be placed on the stack, and the function will access the previous stack frame's locations (by adding into the ptr)
-            //(stack grows downwards)
-            let param_count = params.len();
-            let register_param_count = 6;
-            for i in 0..param_count{
-                if i <= register_param_count {
-                    //variables can start at frame-20, because of memory alignment
-                    let variable_size =match &params[i] {
-                        AST::VariableDec { label, type_ } => {
-                            match type_ {
-                                Keyword::Int => 4,
-                                Keyword::Long => 8,
-                                Keyword::Char => 1,
-                                Keyword::Float => 4,
-                                Keyword::Short => 2,
-                                other => return Err(format!("invalid type: {:?}", other))
-                            }
-                        },
-                        _other_ast => return Err(format!("Only variable declarations can occur inside function parameters"))
-                    };
-                    total_variable_space += variable_size;
-                    raw_asm += &format!("mov {}, dword ptr [rbp-{}]", REGISTER_LIST[i], 20+total_variable_space);
-                }
-                else { //when a parameter above 6 is reached
-                    break; //nothing has to be done, since the variables are pushed to the stack, and can be accessed form rbp+16 (most likely)
-                }
-            }
 
+            //statement_block has to come first, so that the amount of bytes variables take, can be calculated
             let has_return;
             //after parameters, the function's block has to be parsed
             match statement_block {
@@ -126,10 +100,17 @@ pub fn function_declaration(function: &AST, caller_variable_count: usize) -> Res
                                         panic!("implement variable declaration and separate assignment later");
                                     },
                                     AST::VariableAssignment { name, type_, value } => {
-                                        
+                                        variable_size_sum += match type_ {
+                                            Keyword::Int => 4,
+                                            Keyword::Long => 8,
+                                            Keyword::Char => 1,
+                                            Keyword::Float => 4,
+                                            Keyword::Short => 2,
+                                            other => return Err(format!("invalid type: {:?}", other))
+                                        }
                                     },
                                     AST::FunctionCall { label, params } => {
-
+                                        //this won't use up stack space
                                     },
                                     AST::Return { expr } => {
                                         had_return = true;
@@ -152,6 +133,36 @@ pub fn function_declaration(function: &AST, caller_variable_count: usize) -> Res
                 }
                 None => has_return = false, //not every function has to have statements. But without a return, it can only be a void function
             }
+            //if there are less than 7 variables, the variable values will only get placed in registers from the register list.
+            //more than 7 parameters will be placed on the stack, and the function will access the previous stack frame's locations (by adding into the ptr)
+            //(stack grows downwards)
+            let param_count = params.len();
+            let register_param_count = 6;
+            for i in 0..param_count{
+                if i <= register_param_count {
+                    //todo: implement memory alignment (that would need a scan of the locally described variables first though)
+                    let variable_size = match &params[i] {
+                        AST::VariableDec { label, type_ } => {
+                            match type_ {
+                                Keyword::Int => 4,
+                                Keyword::Long => 8,
+                                Keyword::Char => 1,
+                                Keyword::Float => 4,
+                                Keyword::Short => 2,
+                                other => return Err(format!("invalid type: {:?}", other))
+                            }
+                        },
+                        _other_ast => return Err(format!("Only variable declarations can occur inside function parameters"))
+                    };
+                    total_parameter_size += variable_size;
+                    //make sure that the parameters are 16-byte (64 bit) aligned
+                    raw_asm += &format!("mov {}, dword ptr [rbp-{}]", REGISTER_LIST[i], (((variable_size_sum/16)+1)*16)+total_parameter_size);
+                }
+                else { //when a parameter above 6 is reached
+                    break; //nothing has to be done, since the variables are pushed to the stack, and can be accessed form rbp+16 (most likely)
+                }
+            }
+
 
 
             if !has_return && *return_type != Keyword::Void {
