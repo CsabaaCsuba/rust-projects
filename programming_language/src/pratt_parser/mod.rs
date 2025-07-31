@@ -3,7 +3,7 @@
 use crate::tokens::{Delimiter, Operator, Token};
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Number(f64),
     BinaryOp {

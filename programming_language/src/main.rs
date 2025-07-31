@@ -40,12 +40,14 @@ mod pratt_parser;
 use pratt_parser::*;
 
 
+use std::fmt::format;
 use std::fs;
 use std::fs::File;
 use std::io::{self, Write};
 use std::process::Command;
 use std::path::Path;
 
+#[derive(Debug, Clone)]
 pub enum AST {
     ProgramBlock {
         statements: Vec<AST>,
@@ -75,7 +77,7 @@ pub enum AST {
     },
 
     Return {
-        expr: Option<Box<AST>>
+        expr: Option<Expr>
     },
 
 }
@@ -91,7 +93,8 @@ use tokens::*;
 
 //won't use traits since those are slow
 impl ASTParser {
-    pub fn new(tokens: Vec<Token>) -> Self {
+    pub fn new(tokens: &Vec<Token>) -> Self {
+        let tokens = tokens.clone();
         Self { tokens, pos: 0 }
     }
 
@@ -128,6 +131,7 @@ impl ASTParser {
         None
     }
 
+    
 
     fn parse_function_dec(&mut self, type_: tokens::Keyword) -> Result<AST, String> {
         //currently, the caller should be at the left parenthesis
@@ -213,7 +217,41 @@ impl ASTParser {
         }
     }
 
+    fn parse_statement_block(&mut self) -> Result<AST, String> {
+        //must be at {
+        self.advance();
+        let mut statements = Vec::new();
+
+        loop {
+            match self.current(){
+                Some(Token::Keyword(Keyword::Return)) => {
+
+                },
+                Some(Token::Keyword(keyword)) => {
+                    //this could be an if statement, a switch statement, etc...
+                    //for now, it can only parse variable declarations
+                    self.advance();
+                    match self.current() {
+                        Some(Token::Identifier(name)) => {
+                            self.advance();
+                            //cannot be a function declaration, so it's for variables
+                            let parsed_var_dec = self.parse_variable_dec(keyword, &name)?;
+                            statements.push(parsed_var_dec);
+                        }
+                        _ => return Err(format!("After keyword {:?}, a variable declaration is expected", keyword))
+                    }
+                }
+                Some(Token::Delimiter(Delimiter::RightBrace)) => break, //when encounters end of function, break
+                _ => return Err("Only variable assignments are supported for now...".to_string())
+            }
+        }
+
+
+        Ok(AST::ProgramBlock { statements })
+    }
+
     fn generate_ast(&mut self) -> Result<AST, String> {
+        let mut full_program = Vec::new();
         match self.current() {
             Some(Token::Keyword(type_)) => {
                 self.advance();
@@ -226,13 +264,13 @@ impl ASTParser {
                                 //parse_params could handle the variable names (if it's a multiple parameter declaration)
                                 //todo: parse the = sign, and the expression / array statement after it
                                 let parsed_ast = self.parse_variable_dec(type_, &name)?;
-                                return Ok(parsed_ast);
+                                full_program.push(parsed_ast);
                             },
                             //it's a function (call or declaration)
                             Some(Token::Delimiter(Delimiter::LeftParen)) => {
                                 //parse_params will handle the parameters the function was called with (if it's a call)
                                 let parsed_ast = self.parse_function_dec(type_)?;
-                                return Ok(parsed_ast);
+                                full_program.push(parsed_ast);
                             }
 
                             _ => panic!("Unimplemented")
@@ -245,6 +283,7 @@ impl ASTParser {
             _ => panic!("Unimplemented 3")
 
         }
+        Ok(AST::ProgramBlock { statements: full_program })
     }
 }
 
@@ -253,6 +292,8 @@ fn main() {
     let file_contents = fs::read_to_string("src/code.c").expect("src/code.c not found...");
     let tokens = tokenize(file_contents);
     print_tokens(&tokens);
+    let ast = ASTParser::new(&tokens).generate_ast();
+    
     let asm_code = generate_code(tokens);
     if let Ok(asm_code) = asm_code {
         let mut file = File::create("src/code.asm").expect("failed to create file");
