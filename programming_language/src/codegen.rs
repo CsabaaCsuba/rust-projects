@@ -68,7 +68,7 @@ pub fn variable_assignment(assignment: &AST, variable_count: usize) -> Result<St
                 Some(n) => (n + 0.5 - ((n >= 0.5) as u8 as f64)) as i64, //fast conversion to i64
                 None => return Err(format!("Cannot comprehend this numeric expression"))
             };
-            return Ok(format!("mov dword ptr [rbp-{}], {}", offset, expr_value));
+            return Ok(format!("\tmov dword ptr [rbp-{}], {}\n", offset, expr_value));
         },
         other => return Err(format!("invalid type: {:?}", other))
     }
@@ -78,16 +78,36 @@ pub fn function_declaration(function: &AST, caller_variable_count: usize) -> Res
     let mut raw_asm = String::new();
     let mut total_parameter_size = 0;
     let mut variable_size_sum = 0;
+    /*
+    basic linux assembly, returning exit code 4:
+    global _start
+    _start:
+        mov rax, 60
+        mov rdi, 4
+        syscall
+    */
     
     match function {
         FunctionDec { label, return_type, params, statement_block } => {
-            raw_asm += &format!("{}:\n", label);
+            let is_main = if label == "main"{
+                true
+            } else {
+                false
+            };
+
+            if  is_main{
+                raw_asm += &format!("\nglobal _start\n_start:\n");
+            }
+            else {
+                raw_asm += &format!("{}:\n", label);
+            }
+            
             raw_asm += "\tpush rbp\n"; //saves the current frame pointer to the stack
             raw_asm += "\tmov rbp, rsp\n"; //the new frame pointer becomes the stack pointer
 
             //statement_block has to come first, so that the amount of bytes variables take, can be calculated
             let has_return;
-            //after parameters, the function's block has to be parsed
+            let mut block_string = String::new();
             match statement_block {
                 Some(pointer) => {
                     let block = *pointer.clone();
@@ -110,16 +130,30 @@ pub fn function_declaration(function: &AST, caller_variable_count: usize) -> Res
                                         }
                                     },
                                     AST::FunctionCall { label, params } => {
-                                        //this won't use up stack space
+                                        //this won't use up stack space, since it's return value is not goint to be used
+                                        block_string += &format!("call {label}");
                                     },
                                     AST::Return { expr } => {
                                         had_return = true;
                                         match expr {
                                             Some(return_expr) => {
-
+                                                let solution = return_expr.resolve_numeric().unwrap();
+                                                if is_main{
+                                                    block_string += "\tmov rax, 60\n"; //60 for program exit
+                                                    block_string += &format!("\tmov rdi, {}\n", solution as i64);
+                                                    block_string += "\tpop rbp\n\tsyscall\n";
+                                                }
+                                                else {
+                                                    
+                                                    block_string += &format!("\tmov eax, {}\n", solution as i64);
+                                                    block_string += "\tpop rbp\n\tret\n";
+                                                }
+                                                
+                                                
+                                                
                                             },
                                             None => {
-
+                                                block_string += "\tpop rbp\n\tret\n";
                                             }
                                         }
                                     },
@@ -156,19 +190,19 @@ pub fn function_declaration(function: &AST, caller_variable_count: usize) -> Res
                     };
                     total_parameter_size += variable_size;
                     //make sure that the parameters are 16-byte (64 bit) aligned
-                    raw_asm += &format!("mov {}, dword ptr [rbp-{}]", REGISTER_LIST[i], (((variable_size_sum/16)+1)*16)+total_parameter_size);
+                    raw_asm += &format!("\tmov {}, dword ptr [rbp-{}]\n", REGISTER_LIST[i], (((variable_size_sum/16)+1)*16)+total_parameter_size);
                 }
                 else { //when a parameter above 6 is reached
-                    break; //nothing has to be done, since the variables are pushed to the stack, and can be accessed form rbp+16 (most likely)
+                    break; 
+                    //nothing has to be done, since the variables are pushed to the stack, and can be accessed form rbp+our variables's size + padding (most likely)
                 }
             }
-
-
 
             if !has_return && *return_type != Keyword::Void {
                 return Err(format!("Non-void functions must return something"));
             }
 
+            raw_asm += &block_string;
 
             return Ok(raw_asm);
         },
@@ -187,8 +221,6 @@ pub fn codegen2(tree: AST) -> Result<String, String>{
                     FunctionDec { label, return_type, params, statement_block } => {
                         let res = function_declaration(&statements[i], variable_count)?;
                         raw_asm += &res;
-
-                        
                     },
                     VariableAssignment { name, type_, value } => {
                         variable_count += 1;

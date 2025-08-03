@@ -108,6 +108,12 @@ impl ASTParser {
         }
     }
 
+    fn advance_by(&mut self, amount: usize){
+        if self.pos+amount < self.tokens.len(){
+            self.pos += amount;
+        }
+    }
+
     fn peek_next(&mut self) -> Option<Token> {
         if self.pos + 1 < self.tokens.len() {
             return self.tokens.get(self.pos+1).cloned();
@@ -133,7 +139,7 @@ impl ASTParser {
 
     
 
-    fn parse_function_dec(&mut self, type_: tokens::Keyword) -> Result<AST, String> {
+    fn parse_function_dec(&mut self, type_: tokens::Keyword, label: &str) -> Result<AST, String> {
         //currently, the caller should be at the left parenthesis
         
         let mut params = Vec::new();
@@ -154,11 +160,14 @@ impl ASTParser {
                             //     Some(Token::Delimiter(Delimiter::RightParen)) => break,
                             //     _ => return Err("Invalid token found after variable..".to_string())
                             // }
-                        }
+                        },
+                        Some(Token::Delimiter(Delimiter::RightParen)) => {
+                            break; //there are no parameters
+                        },
                         _ => return Err("Parameter name not found after type declaration".to_string())
                     }
                 }
-                Some(Token::Delimiter(Delimiter::Colon)) => {
+                Some(Token::Operator(Operator::Comma)) => {
                     if expect_param {
                         return Err("multiple \",\" characters found, but no parameter declarations after them".to_string())
                     }
@@ -178,15 +187,15 @@ impl ASTParser {
         }
 
         self.advance();
-        //todo: implement forward declaration later as well
+        //todo: implement forward declaration later as well (idk why I wrote this here)
         match self.current() {
             Some(Token::Delimiter(Delimiter::LeftBrace)) => (),
             other => return Err(format!("Expected \"{{\", found {other:?}"))
         }        
-        loop {
-
-        }
-
+        //parsing the function block
+        let function_statements = self.parse_statement_block()?;
+        
+        return Ok(AST::FunctionDec { label: label.to_string(), return_type: type_, params: params, statement_block: Some(Box::new(function_statements)) })
     }
 
     fn parse_variable_dec(&mut self, type_: Keyword, name: &str) -> Result<AST, String> {
@@ -201,6 +210,11 @@ impl ASTParser {
         }
         match type_ {
             tokens::Keyword::Int | tokens::Keyword::Float => {
+                match self.current() {
+                    Some(Token::Operator(Operator::Assign)) => self.advance(),
+                    other => return Err(format!("Invalid token in variable declaration: {:?}", other))
+                }
+                
                 let statement_ending = match self.next_idx_of(Token::Delimiter(Delimiter::Semicolon)) {
                     Some(n) => n,
                     None => return Err("No ; found after variable assignment".to_string())
@@ -209,6 +223,7 @@ impl ASTParser {
                 let mut parser = ExprParser::new(new_arr);
                 let expr = parser.parse_expression(0)?;
                 syntax_tree = AST::VariableAssignment { type_, name: name.to_string(), value: expr };
+                self.advance_by(statement_ending-self.pos+1); //+1 for semicolon
 
                 return Ok(syntax_tree);
             },
@@ -225,13 +240,32 @@ impl ASTParser {
         loop {
             match self.current(){
                 Some(Token::Keyword(Keyword::Return)) => {
-
+                    self.advance();
+                    match self.current(){
+                        //return statements can only return floats and float expressions right now
+                        Some(Token::FloatLiteral(n)) => {
+                            let statement_ending = match self.next_idx_of(Token::Delimiter(Delimiter::Semicolon)) {
+                                Some(n) => n,
+                                None => return Err("No ; found after variable assignment".to_string())
+                            };
+                            let new_arr = Vec::from(&self.tokens[self.pos..statement_ending]);
+                            let mut parser = ExprParser::new(new_arr);
+                            let expr = parser.parse_expression(0)?;
+                            statements.push(AST::Return { expr: Some(expr) });
+                            self.advance_by(statement_ending-self.pos+1); //+1 for incoming semicolon
+                        },
+                        Some(Token::Delimiter(Delimiter::Semicolon)) => {
+                            statements.push(AST::Return { expr: None });
+                            self.advance();
+                        }
+                        other => return Err(format!("Invalid token found after return: {:?}", other))
+                    }
                 },
                 Some(Token::Keyword(keyword)) => {
                     //this could be an if statement, a switch statement, etc...
-                    //for now, it can only parse variable declarations
                     self.advance();
                     match self.current() {
+                        //for now, it can only parse variable declarations
                         Some(Token::Identifier(name)) => {
                             self.advance();
                             //cannot be a function declaration, so it's for variables
@@ -242,7 +276,7 @@ impl ASTParser {
                     }
                 }
                 Some(Token::Delimiter(Delimiter::RightBrace)) => break, //when encounters end of function, break
-                _ => return Err("Only variable assignments are supported for now...".to_string())
+                other => return Err(format!("Only variable assignments are supported for now. found: {:?}", other))
             }
         }
 
@@ -252,36 +286,41 @@ impl ASTParser {
 
     fn generate_ast(&mut self) -> Result<AST, String> {
         let mut full_program = Vec::new();
-        match self.current() {
-            Some(Token::Keyword(type_)) => {
-                self.advance();
-                match self.current() {
-                    Some(Token::Identifier(name)) => {
-                        self.advance();
-                        match self.current() {
-                            //it's a variable assignment
-                            Some(Token::Operator(Operator::Assign)) => {
-                                //parse_params could handle the variable names (if it's a multiple parameter declaration)
-                                //todo: parse the = sign, and the expression / array statement after it
-                                let parsed_ast = self.parse_variable_dec(type_, &name)?;
-                                full_program.push(parsed_ast);
-                            },
-                            //it's a function (call or declaration)
-                            Some(Token::Delimiter(Delimiter::LeftParen)) => {
-                                //parse_params will handle the parameters the function was called with (if it's a call)
-                                let parsed_ast = self.parse_function_dec(type_)?;
-                                full_program.push(parsed_ast);
+        loop {
+            match self.current() {
+                Some(Token::Keyword(type_)) => {
+                    self.advance();
+                    match self.current() {
+                        Some(Token::Identifier(name)) => {
+                            self.advance();
+                            match self.current() {
+                                //it's a variable assignment
+                                Some(Token::Operator(Operator::Assign)) => {
+                                    //parse_params could handle the variable names (if it's a multiple parameter declaration)
+                                    //todo: parse the = sign, and the expression / array statement after it
+                                    let parsed_ast = self.parse_variable_dec(type_, &name)?;
+                                    full_program.push(parsed_ast);
+                                    self.advance();
+                                },
+                                //it's a function (call or declaration)
+                                Some(Token::Delimiter(Delimiter::LeftParen)) => {
+                                    //parse_params will handle the parameters the function was called with (if it's a call)
+                                    let parsed_ast = self.parse_function_dec(type_, &name)?;
+                                    full_program.push(parsed_ast);
+                                    self.advance();
+                                }
+
+                                _ => panic!("Unimplemented")
                             }
-
-                            _ => panic!("Unimplemented")
                         }
+                        Some(any) => panic!("Unimplemented 2"),
+                        None => break
                     }
+                },
+                Some(Token::EOF) => break,
+                other => panic!("found {:?}", other)
 
-                    _ => panic!("Unimplemented 2")
-                }
-            },
-            _ => panic!("Unimplemented 3")
-
+            }
         }
         Ok(AST::ProgramBlock { statements: full_program })
     }
@@ -292,16 +331,19 @@ fn main() {
     let file_contents = fs::read_to_string("src/code.c").expect("src/code.c not found...");
     let tokens = tokenize(file_contents);
     print_tokens(&tokens);
-    let ast = ASTParser::new(&tokens).generate_ast();
+    let ast = ASTParser::new(&tokens).generate_ast().expect("Failed to parse AST");
+    println!("{:?}", &ast);
+    let asm_code = codegen2(ast).expect("Failed to generate Machine Code");
     
-    let asm_code = generate_code(tokens);
-    if let Ok(asm_code) = asm_code {
+    // let asm_code = generate_code(tokens);
+    // if let Ok(asm_code) = asm_code {
         let mut file = File::create("src/code.asm").expect("failed to create file");
-        file.write_all(asm_code.as_bytes()).expect("failed to write to file");
+        // file.write_all(asm_code.as_bytes()).expect("failed to write to file")
+        file.write_all(&asm_code.as_bytes()).expect("failed to write to file");
 
         assemble_with_nasm("src/code.asm", "src/code.o");
         link_with_ld("src/code.o", "src/code.out");
-    }
+    // }
 
 
 }
