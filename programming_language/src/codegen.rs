@@ -68,7 +68,7 @@ pub fn variable_assignment(assignment: &AST, variable_count: usize) -> Result<St
                 Some(n) => (n + 0.5 - ((n >= 0.5) as u8 as f64)) as i64, //fast conversion to i64
                 None => return Err(format!("Cannot comprehend this numeric expression"))
             };
-            return Ok(format!("\tmov dword ptr [rbp-{}], {}\n", offset, expr_value));
+            return Ok(format!("\tmov dword [rbp-{}], {}\n", offset, expr_value));
         },
         other => return Err(format!("invalid type: {:?}", other))
     }
@@ -190,7 +190,7 @@ pub fn function_declaration(function: &AST, caller_variable_count: usize) -> Res
                     };
                     total_parameter_size += variable_size;
                     //make sure that the parameters are 16-byte (64 bit) aligned
-                    raw_asm += &format!("\tmov {}, dword ptr [rbp-{}]\n", REGISTER_LIST[i], (((variable_size_sum/16)+1)*16)+total_parameter_size);
+                    raw_asm += &format!("\tmov {}, dword [rbp-{}]\n", REGISTER_LIST[i], (((variable_size_sum/16)+1)*16)+total_parameter_size);
                 }
                 else { //when a parameter above 6 is reached
                     break; 
