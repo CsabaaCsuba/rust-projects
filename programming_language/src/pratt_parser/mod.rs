@@ -2,7 +2,7 @@
 // use tokens::*;
 use crate::{pratt_parser::primitive_impl::PrimitiveNumber, tokens::{Delimiter, Keyword, Operator, Token}};
 use core::num;
-use std::{fmt};
+use std::fmt::{self, format};
 
 mod primitive_impl;
 use primitive_impl;
@@ -19,6 +19,24 @@ pub enum NumericValue {
     ULong(u64),
     Float(f32),
     Double(f64),
+}
+
+impl fmt::Display for NumericValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            NumericValue::Char(i) => write!(f, "{}", i as i8)?,
+            NumericValue::Short(i) => write!(f, "{}", i as i16)?,
+            NumericValue::Int(i) => write!(f, "{}", i as i32)?,
+            NumericValue::Long(i) => write!(f, "{}", i as i64)?,
+            NumericValue::UChar(i) => write!(f, "{}", i as u8)?,
+            NumericValue::UShort(i) => write!(f, "{}", i as u16)?,
+            NumericValue::UInt(i) => write!(f, "{}", i as u32)?,
+            NumericValue::ULong(i) => write!(f, "{}", i as u64)?,
+            NumericValue::Float(i) => write!(f, "{}", i as f32)?,
+            NumericValue::Double(i) => write!(f, "{}", i as f64)?,
+        }
+        Ok(())
+    }
 }
 
 
@@ -180,7 +198,18 @@ impl Expr {
     }
 
     pub fn generate_asm<T: PrimitiveNumber>(&self) -> Result<String, String>{
+        let expression = self.clone();
+        match expression {
+            Expr::Number(num) => {
+                // let num = T::from_numeric(&num);
+                //todo: write function which returns the string equivalent of a numeric value
+                let asm_code = format!("mov rax, {}", num.to_string());
+                Ok(asm_code)
+            },
+            Expr::BinaryOp { op, left, right } => {
 
+            }
+        }
     }
 
 }
@@ -189,18 +218,7 @@ impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             // Expr::Number(n) => write!(f, "{}", *n)?,
-            Expr::Number(n) => match *n {
-                NumericValue::Char(i) => write!(f, "{}", i as f64)?,
-                NumericValue::Short(i) => write!(f, "{}", i as f64)?,
-                NumericValue::Int(i) => write!(f, "{}", i as f64)?,
-                NumericValue::Long(i) => write!(f, "{}", i as f64)?,
-                NumericValue::UChar(i) => write!(f, "{}", i as f64)?,
-                NumericValue::UShort(i) => write!(f, "{}", i as f64)?,
-                NumericValue::UInt(i) => write!(f, "{}", i as f64)?,
-                NumericValue::ULong(i) => write!(f, "{}", i as f64)?,
-                NumericValue::Float(i) => write!(f, "{}", i as f64)?,
-                NumericValue::Double(i) => write!(f, "{}", i)?
-            },
+            Expr::Number(n) => write!(f, "{}", n.to_string())?,
             Expr::BinaryOp { op, left, right } => {
                 write!(f, "{}", *left)?;
                 match op.clone() {
