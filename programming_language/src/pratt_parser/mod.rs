@@ -1,11 +1,30 @@
 // mod tokens;
 // use tokens::*;
-use crate::tokens::{Delimiter, Operator, Token, Keyword};
-use std::fmt;
+use crate::{pratt_parser::primitive_impl::PrimitiveNumber, tokens::{Delimiter, Keyword, Operator, Token}};
+use core::num;
+use std::{fmt};
+
+mod primitive_impl;
+use primitive_impl;
+
+#[derive(Debug, Clone)]
+pub enum NumericValue {
+    Char(i8),
+    UChar(u8),
+    Short(i16),
+    UShort(u16),
+    Int(i32),
+    UInt(u32),
+    Long(i64),
+    ULong(u64),
+    Float(f32),
+    Double(f64),
+}
+
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    Number(f64),
+    Number(NumericValue),
     BinaryOp {
         op: Token,
         left: Box<Expr>,
@@ -74,14 +93,18 @@ impl ExprParser {
         match self.current().unwrap() {
             Token::FloatLiteral(n) => {
                 self.advance();
-                Ok(Expr::Number(n))
+                Ok(Expr::Number(NumericValue::Double(n)))
+            }
+            Token::IntLiteral(n) => {
+                self.advance();
+                Ok(Expr::Number(NumericValue::Long(n)))
             }
             Token::Operator(Operator::Minus) => {
                 self.advance();
                 let expr = self.parse_expression(100)?;
                 Ok(Expr::BinaryOp {
                     op: Token::Operator(Operator::Minus),
-                    left: Box::new(Expr::Number(0.0)),
+                    left: Box::new(Expr::Number(NumericValue::Double(0.0))),
                     right: Box::new(expr),
                 })
             }
@@ -119,7 +142,18 @@ impl ExprParser {
 impl Expr {
     pub fn resolve_numeric(&self) -> Option<f64> {
         match self {
-            Expr::Number(n) => Some(*n),
+            Expr::Number(n) => match *n {
+                NumericValue::Char(i) => Some(i as f64),
+                NumericValue::Short(i) => Some(i as f64),
+                NumericValue::Int(i) => Some(i as f64),
+                NumericValue::Long(i) => Some(i as f64),
+                NumericValue::UChar(i) => Some(i as f64),
+                NumericValue::UShort(i) => Some(i as f64),
+                NumericValue::UInt(i) => Some(i as f64),
+                NumericValue::ULong(i) => Some(i as f64),
+                NumericValue::Float(i) => Some(i as f64),
+                NumericValue::Double(i) => Some(i)
+            },
             Expr::BinaryOp { op, left, right } => {
                 let l = left.resolve_numeric()?;
                 let r = right.resolve_numeric()?;
@@ -145,12 +179,28 @@ impl Expr {
         }
     }
 
+    pub fn generate_asm<T: PrimitiveNumber>(&self) -> Result<String, String>{
+
+    }
+
 }
 
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Expr::Number(n) => write!(f, "{}", *n)?,
+            // Expr::Number(n) => write!(f, "{}", *n)?,
+            Expr::Number(n) => match *n {
+                NumericValue::Char(i) => write!(f, "{}", i as f64)?,
+                NumericValue::Short(i) => write!(f, "{}", i as f64)?,
+                NumericValue::Int(i) => write!(f, "{}", i as f64)?,
+                NumericValue::Long(i) => write!(f, "{}", i as f64)?,
+                NumericValue::UChar(i) => write!(f, "{}", i as f64)?,
+                NumericValue::UShort(i) => write!(f, "{}", i as f64)?,
+                NumericValue::UInt(i) => write!(f, "{}", i as f64)?,
+                NumericValue::ULong(i) => write!(f, "{}", i as f64)?,
+                NumericValue::Float(i) => write!(f, "{}", i as f64)?,
+                NumericValue::Double(i) => write!(f, "{}", i)?
+            },
             Expr::BinaryOp { op, left, right } => {
                 write!(f, "{}", *left)?;
                 match op.clone() {

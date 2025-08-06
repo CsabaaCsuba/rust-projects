@@ -1,0 +1,5 @@
+statement -> function, variable declaration
+function declaration -> variable declaration, return
+variable declaration -> expression
+return -> expression
+expression -> number | (number + | - | * | / number)

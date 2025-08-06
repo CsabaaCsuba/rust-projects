@@ -231,8 +231,10 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                         output.push(Token::FloatLiteral(val));
                     }
                 } else {
+                    //if it fits in i64, else use u64
                     if let Ok(val) = num_str.parse::<i64>() {
                         output.push(Token::IntLiteral(val));
+
                     }
                 }
             }
