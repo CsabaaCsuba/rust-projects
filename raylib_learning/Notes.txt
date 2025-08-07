@@ -1,2 +1,0 @@
-1. Always update the camera before starting to draw.
- Otherwise, if the player's position is related to the camera, it might look goofy

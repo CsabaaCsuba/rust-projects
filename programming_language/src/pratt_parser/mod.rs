@@ -5,7 +5,6 @@ use core::num;
 use std::fmt::{self, format};
 
 mod primitive_impl;
-use primitive_impl;
 
 #[derive(Debug, Clone)]
 pub enum NumericValue {
@@ -207,7 +206,28 @@ impl Expr {
                 Ok(asm_code)
             },
             Expr::BinaryOp { op, left, right } => {
+                let left_expr = left.generate_asm()?;
+                let right_expr = right.generate_asm()?;
 
+                match op {
+                    Token::Operator(Operator::Plus) => {
+
+                    },
+                    Token::Operator(Operator::Minus) => {
+
+                    },
+                    Token::Operator(Operator::Multiply) => {
+
+                    },
+                    Token::Operator(Operator::Modulo) => {
+
+                    },
+                    Token::Operator(Operator::Divide) => {
+
+                    },
+
+                    _ => return Err("invalid token found when generating assembly".to_string())
+                }
             }
         }
     }
