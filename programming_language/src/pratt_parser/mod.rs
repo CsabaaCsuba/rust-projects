@@ -142,6 +142,7 @@ impl ExprParser {
         match token {
             Token::Operator(Operator::Plus) | Token::Operator(Operator::Minus) => Some(10),
             Token::Operator(Operator::Multiply) | Token::Operator(Operator::Divide) | Token::Operator(Operator::Modulo) => Some(20),
+            Token::Operator(Operator::Equal) | Token::Operator(Operator::NotEqual)=> Some(30),
             Token::Delimiter(Delimiter::RightParen) => None,
             Token::FloatLiteral(_) | Token::Delimiter(Delimiter::LeftParen) | _ => None,
         }
@@ -151,6 +152,7 @@ impl ExprParser {
         match token {
             Token::Operator(Operator::Plus) | Token::Operator(Operator::Minus) => 10,
             Token::Operator(Operator::Multiply) | Token::Operator(Operator::Divide) | Token::Operator(Operator::Modulo) => 20,
+            Token::Operator(Operator::Equal) | Token::Operator(Operator::NotEqual)=> 30,
             _ => 0,
         }
     }
@@ -190,43 +192,23 @@ impl Expr {
                         }
                         Some(l / r)
                     }
+                    Token::Operator(Operator::Equal) => {
+                        if l == r {
+                            return Some(1.0);
+                        }
+                        else{
+                            return Some(0.0);
+                        }
+                    }
+                    Token::Operator(Operator::NotEqual) => {
+                        if l == r {
+                            return Some(0.0);
+                        }
+                        else{
+                            return Some(1.0);
+                        }
+                    }
                     _ => panic!("Unreachable branch. Invalid binary operator: {:?}", op),
-                }
-            }
-        }
-    }
-
-    pub fn generate_asm<T: PrimitiveNumber>(&self) -> Result<String, String>{
-        let expression = self.clone();
-        match expression {
-            Expr::Number(num) => {
-                // let num = T::from_numeric(&num);
-                //todo: write function which returns the string equivalent of a numeric value
-                let asm_code = format!("mov rax, {}", num.to_string());
-                Ok(asm_code)
-            },
-            Expr::BinaryOp { op, left, right } => {
-                let left_expr = left.generate_asm()?;
-                let right_expr = right.generate_asm()?;
-
-                match op {
-                    Token::Operator(Operator::Plus) => {
-
-                    },
-                    Token::Operator(Operator::Minus) => {
-
-                    },
-                    Token::Operator(Operator::Multiply) => {
-
-                    },
-                    Token::Operator(Operator::Modulo) => {
-
-                    },
-                    Token::Operator(Operator::Divide) => {
-
-                    },
-
-                    _ => return Err("invalid token found when generating assembly".to_string())
                 }
             }
         }
@@ -247,6 +229,8 @@ impl fmt::Display for Expr {
                     Token::Operator(Operator::Multiply) => write!(f, " * ")?,
                     Token::Operator(Operator::Modulo) => write!(f, " % ")?,
                     Token::Operator(Operator::Divide) => write!(f, " / ")?,
+                    Token::Operator(Operator::Equal) => write!(f, " == ")?,
+                    Token::Operator(Operator::NotEqual) => write!(f, " != ")?,
                     _ => panic!("Unreachable branch. Invalid binary operator: {:?}", op),
                 }
                 write!(f, "{}", *right)?;

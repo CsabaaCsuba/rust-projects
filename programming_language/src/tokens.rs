@@ -1,8 +1,9 @@
 // Token types for lexical analysis
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
-    // Literals
+    // Literals (literal values)
     IntLiteral(i64),
+    UintLiteral(u64),
     FloatLiteral(f64),
     CharLiteral(char),
     StringLiteral(String),
@@ -234,7 +235,9 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     //if it fits in i64, else use u64
                     if let Ok(val) = num_str.parse::<i64>() {
                         output.push(Token::IntLiteral(val));
-
+                    }
+                    else {
+                        output.push(Token::UintLiteral(num_str.parse::<u64>().unwrap()))
                     }
                 }
             }

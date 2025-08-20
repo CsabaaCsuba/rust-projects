@@ -1,6 +1,7 @@
 
 use crate::tokens::*;
 use crate::*;
+use crate::AST::*;
 use crate::MyError;
 
 const REGISTER_LIST: [&str; 6] = ["edi", "esi", "edx", "ecx", "r8d", "r9d"];
@@ -95,7 +96,7 @@ pub fn function_declaration(function: &AST, caller_variable_count: usize) -> Res
                 false
             };
 
-            if  is_main{
+            if is_main {
                 raw_asm += &format!("\nglobal _start\n_start:\n");
             }
             else {
@@ -114,7 +115,7 @@ pub fn function_declaration(function: &AST, caller_variable_count: usize) -> Res
                     let mut had_return = false;
                     match block {
                         AST::ProgramBlock { statements } => {
-                            for i in 0..statements.len(){
+                            for i in 0..statements.len() {
                                 match &statements[i] {
                                     AST::VariableDec { label, type_ } => {
                                         panic!("implement variable declaration and separate assignment later");
