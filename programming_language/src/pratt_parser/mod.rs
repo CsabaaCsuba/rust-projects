@@ -6,7 +6,7 @@ use std::fmt::{self, format};
 
 mod primitive_impl;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NumericValue {
     Char(i8),
     UChar(u8),
@@ -39,9 +39,10 @@ impl fmt::Display for NumericValue {
 }
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Number(NumericValue),
+    Variable(String),
     BinaryOp {
         op: Token,
         left: Box<Expr>,
@@ -116,6 +117,10 @@ impl ExprParser {
                 self.advance();
                 Ok(Expr::Number(NumericValue::Long(n)))
             }
+            Token::Identifier(label) => {
+                self.advance();
+                Ok(Expr::Variable(label.clone()))
+            }
             Token::Operator(Operator::Minus) => {
                 self.advance();
                 let expr = self.parse_expression(100)?;
@@ -141,8 +146,12 @@ impl ExprParser {
     fn lbp(&self, token: Token) -> Option<u8> {
         match token {
             Token::Operator(Operator::Plus) | Token::Operator(Operator::Minus) => Some(10),
+            Token::Operator(Operator::PlusAssign) | Token::Operator(Operator::MinusAssign) => Some(10),
             Token::Operator(Operator::Multiply) | Token::Operator(Operator::Divide) | Token::Operator(Operator::Modulo) => Some(20),
+            Token::Operator(Operator::MultiplyAssign) | Token::Operator(Operator::DivideAssign) | Token::Operator(Operator::ModuloAssign) => Some(20),
             Token::Operator(Operator::Equal) | Token::Operator(Operator::NotEqual)=> Some(30),
+            Token::Operator(Operator::Greater) | Token::Operator(Operator::GreaterEqual) => Some(30),
+            Token::Operator(Operator::Less) | Token::Operator(Operator::LessEqual) => Some(30),
             Token::Delimiter(Delimiter::RightParen) => None,
             Token::FloatLiteral(_) | Token::Delimiter(Delimiter::LeftParen) | _ => None,
         }
@@ -151,76 +160,24 @@ impl ExprParser {
     fn rbp(&self, token: Token) -> u8 {
         match token {
             Token::Operator(Operator::Plus) | Token::Operator(Operator::Minus) => 10,
+            Token::Operator(Operator::PlusAssign) | Token::Operator(Operator::MinusAssign) => 10,
             Token::Operator(Operator::Multiply) | Token::Operator(Operator::Divide) | Token::Operator(Operator::Modulo) => 20,
-            Token::Operator(Operator::Equal) | Token::Operator(Operator::NotEqual)=> 30,
+            Token::Operator(Operator::MultiplyAssign) | Token::Operator(Operator::DivideAssign) | Token::Operator(Operator::ModuloAssign) => 20,
+            Token::Operator(Operator::Equal) | Token::Operator(Operator::NotEqual) => 30,
+            Token::Operator(Operator::Greater) | Token::Operator(Operator::GreaterEqual) => 30,
+            Token::Operator(Operator::Less) | Token::Operator(Operator::LessEqual) => 30,
             _ => 0,
         }
     }
 }
 
-impl Expr {
-    pub fn resolve_numeric(&self) -> Option<f64> {
-        match self {
-            Expr::Number(n) => match *n {
-                NumericValue::Char(i) => Some(i as f64),
-                NumericValue::Short(i) => Some(i as f64),
-                NumericValue::Int(i) => Some(i as f64),
-                NumericValue::Long(i) => Some(i as f64),
-                NumericValue::UChar(i) => Some(i as f64),
-                NumericValue::UShort(i) => Some(i as f64),
-                NumericValue::UInt(i) => Some(i as f64),
-                NumericValue::ULong(i) => Some(i as f64),
-                NumericValue::Float(i) => Some(i as f64),
-                NumericValue::Double(i) => Some(i)
-            },
-            Expr::BinaryOp { op, left, right } => {
-                let l = left.resolve_numeric()?;
-                let r = right.resolve_numeric()?;
-                match op {
-                    Token::Operator(Operator::Plus) => Some(l + r),
-                    Token::Operator(Operator::Minus) => Some(l - r),
-                    Token::Operator(Operator::Multiply) => Some(l * r),
-                    Token::Operator(Operator::Modulo) => {
-                        if r == 0.0 {
-                            return None;
-                        }
-                        Some( l % r)
-                    },
-                    Token::Operator(Operator::Divide) => {
-                        if r == 0.0 {
-                            return None;
-                        }
-                        Some(l / r)
-                    }
-                    Token::Operator(Operator::Equal) => {
-                        if l == r {
-                            return Some(1.0);
-                        }
-                        else{
-                            return Some(0.0);
-                        }
-                    }
-                    Token::Operator(Operator::NotEqual) => {
-                        if l == r {
-                            return Some(0.0);
-                        }
-                        else{
-                            return Some(1.0);
-                        }
-                    }
-                    _ => panic!("Unreachable branch. Invalid binary operator: {:?}", op),
-                }
-            }
-        }
-    }
-
-}
 
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             // Expr::Number(n) => write!(f, "{}", *n)?,
             Expr::Number(n) => write!(f, "{}", n.to_string())?,
+            Expr::Variable(v) => write!(f, "{v:?}")?,
             Expr::BinaryOp { op, left, right } => {
                 write!(f, "{}", *left)?;
                 match op.clone() {
@@ -240,52 +197,4 @@ impl fmt::Display for Expr {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::tokens::tokenize;
-    use crate::pratt_parser::*;
-
-    fn easy_eval(raw_str: &str) -> Option<f64> {
-        ExprParser::new(tokenize(raw_str.to_string()))
-            .parse_expression(0)
-            .expect("failed to parse?")
-            .resolve_numeric()
-    }
-
-    #[test]
-    fn test1(){
-        assert_eq!(ExprParser::new(tokenize("3.0 + 3.0".to_string())).parse_expression(0).expect("failed to parse?").resolve_numeric(), Some(6.0));
-    }
-
-    #[test]
-    fn test2(){
-        assert_eq!(ExprParser::new(tokenize("5.0 % 3.0".to_string())).parse_expression(0).expect("failed to parse?").resolve_numeric(), Some(2.0));
-    }
-
-    #[test]
-    #[should_panic(expected="failed to parse?")]
-    fn test3(){
-        assert_eq!(ExprParser::new(tokenize("1.0 % 4.0 * ".to_string())).parse_expression(0).expect("failed to parse?").resolve_numeric(), Some(1.0));
-    }
-
-    #[test]
-    fn test4(){
-        assert_eq!(ExprParser::new(tokenize("(1.0 * 4.0)".to_string())).parse_expression(0).expect("failed to parse?").resolve_numeric(), Some(4.0));
-    }
-
-    #[test]
-    fn test5(){
-        assert_eq!(&ExprParser::new(tokenize("(1.0 * 4.5)".to_string())).parse_expression(0).expect("failed to parse?").to_string(), "1 * 4.5");
-    }
-
-    //this test doesn't work properly, because the parenthesis information gets lost, however, the evaluation works fine
-    // #[test]
-    // fn test6(){
-    //     assert_eq!(&ExprParser::new(tokenize("2.0 * (3.3 - 1.3)".to_string())).parse_expression(0).expect("failed to parse?").to_string(), "2 * 3.3 - 1.3");
-    // }
-
-    #[test]
-    fn test7(){
-        assert_eq!(easy_eval("2.0 * (3.3 - 1.3)"), Some(2.0 * (3.3 - 1.3)));
-    }
-}
+//todo: write tests
