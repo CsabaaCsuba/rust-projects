@@ -6,7 +6,7 @@ use std::fmt::{self, format};
 
 mod primitive_impl;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum NumericValue {
     Char(i8),
     UChar(u8),
@@ -19,6 +19,24 @@ pub enum NumericValue {
     Float(f32),
     Double(f64),
 }
+
+impl NumericValue {
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            NumericValue::Char(v) => *v as f64,
+            NumericValue::UChar(v) => *v as f64,
+            NumericValue::Short(v) => *v as f64,
+            NumericValue::UShort(v) => *v as f64,
+            NumericValue::Int(v) => *v as f64,
+            NumericValue::UInt(v) => *v as f64,
+            NumericValue::Long(v) => *v as f64,
+            NumericValue::ULong(v) => *v as f64,
+            NumericValue::Float(v) => *v as f64,
+            NumericValue::Double(v) => *v,
+        }
+    }
+}
+
 
 impl fmt::Display for NumericValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -42,13 +60,68 @@ impl fmt::Display for NumericValue {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Number(NumericValue),
-    Variable(String),
+    Label(String),
+    FunctionCall(String, Vec<Expr>), //function name and called variables
     BinaryOp {
         op: Token,
         left: Box<Expr>,
         right: Box<Expr>,
     },
 }
+
+impl Expr {
+    pub fn coerce_to(&mut self, target: &NumericValue) {
+        match self {
+            Expr::Number(n) => {
+                let new_val = match (*n, target) {
+                    // signed conversions
+                    (NumericValue::Char(v), NumericValue::Char(_)) => NumericValue::Char(v),
+                    (NumericValue::Char(v), NumericValue::Short(_)) => NumericValue::Short(v as i16),
+                    (NumericValue::Char(v), NumericValue::Int(_)) => NumericValue::Int(v as i32),
+                    (NumericValue::Char(v), NumericValue::Long(_)) => NumericValue::Long(v as i64),
+                    (NumericValue::Char(v), NumericValue::Float(_)) => NumericValue::Float(v as f32),
+                    (NumericValue::Char(v), NumericValue::Double(_)) => NumericValue::Double(v as f64),
+
+                    // unsigned conversions
+                    (NumericValue::UChar(v), NumericValue::UChar(_)) => NumericValue::UChar(v),
+                    (NumericValue::UChar(v), NumericValue::UShort(_)) => NumericValue::UShort(v as u16),
+                    (NumericValue::UChar(v), NumericValue::UInt(_)) => NumericValue::UInt(v as u32),
+                    (NumericValue::UChar(v), NumericValue::ULong(_)) => NumericValue::ULong(v as u64),
+                    (NumericValue::UChar(v), NumericValue::Float(_)) => NumericValue::Float(v as f32),
+                    (NumericValue::UChar(v), NumericValue::Double(_)) => NumericValue::Double(v as f64),
+
+                    // general case: convert everything through f64 if no direct mapping
+                    (val, NumericValue::Float(_)) => NumericValue::Float(val.to_f64() as f32),
+                    (val, NumericValue::Double(_)) => NumericValue::Double(val.to_f64()),
+                    (val, NumericValue::Int(_)) => NumericValue::Int(val.to_f64() as i32),
+                    (val, NumericValue::UInt(_)) => NumericValue::UInt(val.to_f64() as u32),
+                    (val, NumericValue::Long(_)) => NumericValue::Long(val.to_f64() as i64),
+                    (val, NumericValue::ULong(_)) => NumericValue::ULong(val.to_f64() as u64),
+                    (val, NumericValue::Short(_)) => NumericValue::Short(val.to_f64() as i16),
+                    (val, NumericValue::UShort(_)) => NumericValue::UShort(val.to_f64() as u16),
+                    (val, NumericValue::Char(_)) => NumericValue::Char(val.to_f64() as i8),
+                    (val, NumericValue::UChar(_)) => NumericValue::UChar(val.to_f64() as u8),
+                };
+                *n = new_val;
+            }
+            Expr::FunctionCall(_, exprs) => {
+                for e in exprs.iter_mut() {
+                    e.coerce_to(target);
+                }
+            }
+            Expr::BinaryOp { left, right, .. } => {
+                left.coerce_to(target);
+                right.coerce_to(target);
+            }
+            Expr::Label(_) => {
+                // labels probably represent variables — coercion
+                // might be handled at type-check time, so no-op here
+            }
+        }
+    }
+
+}
+
 
 pub struct ExprParser {
     pub tokens: Vec<Token>,
@@ -119,7 +192,7 @@ impl ExprParser {
             }
             Token::Identifier(label) => {
                 self.advance();
-                Ok(Expr::Variable(label.clone()))
+                Ok(Expr::Label(label.clone()))
             }
             Token::Operator(Operator::Minus) => {
                 self.advance();
@@ -177,7 +250,7 @@ impl fmt::Display for Expr {
         match self {
             // Expr::Number(n) => write!(f, "{}", *n)?,
             Expr::Number(n) => write!(f, "{}", n.to_string())?,
-            Expr::Variable(v) => write!(f, "{v:?}")?,
+            Expr::Label(v) => write!(f, "{v:?}")?,
             Expr::BinaryOp { op, left, right } => {
                 write!(f, "{}", *left)?;
                 match op.clone() {
@@ -191,7 +264,8 @@ impl fmt::Display for Expr {
                     _ => panic!("Unreachable branch. Invalid binary operator: {:?}", op),
                 }
                 write!(f, "{}", *right)?;
-            }
+            },
+            Expr::FunctionCall(a, b) => panic!("todo: implement string display for function calls")
         }
         Ok(())
     }

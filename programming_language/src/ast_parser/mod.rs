@@ -17,6 +17,43 @@ pub enum Type {
     Array(Box<Type>, Option<i64>), // type, size (None for unsized)
 }
 
+impl Type {
+    pub fn size(&self) -> usize {
+        match self {
+            Type::Void => 0,
+            Type::Char => 1,
+            Type::Short => 2,
+            Type::Int => 4,
+            Type::Long => 8,
+            Type::Float => 4,
+            Type::Double => 8,
+            Type::Unsigned(any) => any.clone().size(),
+            Type::Signed(any) => any.clone().size(),
+            Type::Pointer(_) => 8,
+            Type::Array(_, size) => match size {
+                Some(n) => *n as usize,
+                None => panic!("Idk what to do with unsized arrays")
+            },
+        }
+    }
+
+    pub fn to_numeric_value(&self) -> Option<NumericValue> {
+        match self {
+            Type::Void => None,
+            Type::Char => Some(NumericValue::Char(0)),
+            Type::Short => Some(NumericValue::Short(0)),
+            Type::Int => Some(NumericValue::Int(0)),
+            Type::Long => Some(NumericValue::Long(0)),
+            Type::Float => Some(NumericValue::Float(0.0)),
+            Type::Double => Some(NumericValue::Double(0.0)),
+            Type::Unsigned(t) => t.clone().to_numeric_value(),
+            Type::Signed(t) => t.clone().to_numeric_value(),
+            Type::Pointer(_) => Some(NumericValue::ULong(0)),
+            Type::Array(_, _) => Some(NumericValue::ULong(0)), //array is just a pointer in this sense
+        }
+    }
+}
+
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -57,12 +94,6 @@ pub enum Statement {
         name: String,
         args: Vec<Expr>,
     },
-    // FunctionDeclaration {
-    //     return_type: Type,
-    //     name: String,
-    //     params: Vec<(Type, String)>,
-    //     body: Block,
-    // },
     If {
         condition: Expr,
         then_block: Block,
@@ -707,14 +738,14 @@ mod tests {
                     var_type: Type::Int, name: String::from("i"), initializer: Some(Expr::Number(NumericValue::Long(0)))}));
             let condition = Some(
                 Expr::BinaryOp { op: Token::Operator(Operator::Less), 
-                    left: Box::new(Expr::Variable(String::from("i"))), 
+                    left: Box::new(Expr::Label(String::from("i"))), 
                     right: Box::new(Expr::Number(NumericValue::Long(10))) 
                 }
             );
             let increment = Some(Statement::Assignment { 
                 name: String::from("i"), 
                 value: Expr::BinaryOp { op: Token::Operator(Operator::Assign), 
-                    left: Box::new(Expr::Variable(String::from("i"))), 
+                    left: Box::new(Expr::Label(String::from("i"))), 
                     right: Box::new(Expr::Number(NumericValue::Long(1))) 
                 }
             });
@@ -745,12 +776,12 @@ mod tests {
                 Statement::VarDeclaration { var_type: Type::Int, name: String::from("i"), initializer: Some(Expr::Number(NumericValue::Long(0))) },
                 Statement::While { condition: Some(Expr::BinaryOp { 
                     op: Token::Operator(Operator::Less), 
-                    left: Box::new(Expr::Variable(String::from("i"))), 
-                    right: Box::new(Expr::Variable(String::from("loop_max")))}), 
+                    left: Box::new(Expr::Label(String::from("i"))), 
+                    right: Box::new(Expr::Label(String::from("loop_max")))}), 
                     body: Block { statements: vec![Statement::Expression(Expr::BinaryOp { 
                         op: Token::Operator(Operator::PlusAssign), 
-                        left: Box::new(Expr::Variable(String::from("i"))), 
-                        right: Box::new(Expr::Number(NumericValue::Long(0))) })] 
+                        left: Box::new(Expr::Label(String::from("i"))), 
+                        right: Box::new(Expr::Number(NumericValue::Long(1))) })] 
                     }
                 }
             ]
