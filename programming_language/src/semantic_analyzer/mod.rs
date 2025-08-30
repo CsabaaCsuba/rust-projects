@@ -1,5 +1,5 @@
 use rand::Rng;
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::HashMap, hash::Hash, thread::scope};
 
 use crate::{ast_parser::{Block, Parameter, Program, Statement, TopLevel, Type}, pratt_parser::{Expr, NumericValue}};
 
@@ -74,10 +74,15 @@ pub struct AnnotatedGlobalVar {
     pub value: Expr,
 }
 
+pub struct AnnotatedTopLevel {
+    pub expressions: Expr,
+}
+
 
 impl Program {
-    pub fn annotated_statement(&self) -> Result<AnnotatedStatement, String> {
-        let semantic_tree: AnnotatedStatement;
+    pub fn annotated_statement(&self) -> Result<AnnotatedTopLevel, String> {
+        //just a default value, do not use this
+        let mut semantic_tree: AnnotatedTopLevel = AnnotatedTopLevel { expressions: Expr::Number(NumericValue::Char(0)) };
 
         let program = self.declarations.clone();
         let mut root_symbol_table = SymbolTable {
@@ -88,18 +93,19 @@ impl Program {
             scope_id: rand::rng().random()
         };
 
-        for item in program {
+        for item in program.clone() {
             match item {
                 TopLevel::Function(f) => {
-
+                    todo!()
                 },
                 TopLevel::VarDeclaration { var_type, name, initializer } => {
                     match initializer {
                         Some(expression) => {
-                            match expression.untangle_variables( 
+                            match expression.untangle_variables(
                                 root_symbol_table.scope_id,
                                 root_symbol_table.scope_level,
-                                 &mut root_symbol_table) {
+                                 &mut root_symbol_table,
+                                &program) {
                                 Ok(mut valid_expr) => {
                                     valid_expr.coerce_to(&var_type.to_numeric_value().expect("void variables are incorrect"));
                                     
@@ -117,6 +123,46 @@ impl Program {
     }
 }
 
+pub fn iter_scope(label: &String, max_depth: usize, scope_id: u32, symbol_table: &SymbolTable) -> Result<Expr, String> {
+    //search for the label in the current scope
+    if symbol_table.scope_level < max_depth || symbol_table.scope_id == scope_id {
+        let found_label = symbol_table.scope_variables.get(label);
+        match found_label.cloned() {
+            Some((length, value)) => {
+                match (length, value) {
+                    (0, _) => return Err(format!("Parsing error at: {label} ")),
+                    (_, SymbolValue::None) => return Err(format!("Symbol {label} was declared, but without a value")),
+                    (_, SymbolValue::Existing(bytes)) => {
+                        let mut buf = [0u8; 8];
+                        let len = bytes.len().min(8);
+                        buf[..len].copy_from_slice(&bytes[..len]);
+
+                        return Ok(Expr::Number(NumericValue::ULong(
+                            u64::from_ne_bytes(buf),
+                        )));
+                    }
+                };
+                
+                return Ok(Expr::Label(label.clone()));
+            }
+            None =>(),
+        }
+    }
+    for i in 0..symbol_table.children.len(){
+        //if it isn't found yet, iterate through the current symbol table's child
+        if symbol_table.children[i].children.len() != 0 &&
+            (symbol_table.scope_level < max_depth || symbol_table.scope_id == scope_id){
+            let e = iter_scope(label, max_depth, scope_id, &symbol_table.children[i]);
+            match e {
+                Ok(e) => return Ok(e),
+                Err(_) => continue //do not give up, go to the next iteration
+            }
+        }
+    }
+
+    Err(format!("variable {label} wasn't found!"))
+}
+
 pub fn match_label(label: &String, own_scope_id: u32, own_scope_depth: usize, symbols: &mut SymbolTable) -> Result<Expr, String> {
     for symbol in symbols.scope_variables.keys() { //search in top level scope
         if symbol == label {
@@ -124,11 +170,11 @@ pub fn match_label(label: &String, own_scope_id: u32, own_scope_depth: usize, sy
                 Some((value_size, value)) => {
                     match value {
                         SymbolValue::None => return Err(format!("Variable {label} doesn't have an actual value")),
-                        SymbolValue::Existing(items) => {
+                        SymbolValue::Existing(bytes) => {
                             // pad with zeros up to 8 bytes
                             let mut buf = [0u8; 8];
-                            let len = items.len().min(8);
-                            buf[..len].copy_from_slice(&items[..len]);
+                            let len = bytes.len().min(8);
+                            buf[..len].copy_from_slice(&bytes[..len]);
 
                             return Ok(Expr::Number(NumericValue::ULong(
                                 u64::from_ne_bytes(buf),
@@ -143,30 +189,31 @@ pub fn match_label(label: &String, own_scope_id: u32, own_scope_depth: usize, sy
         }
     }
 
-    for (i, table) in symbols.children.iter().enumerate(){
-        //search through all the other legit scopes
+    iter_scope(label, own_scope_depth, own_scope_id, symbols)
 
-    }
+}
 
-    Err(format!("Couldn't find variable {label}"))
-
+pub fn search_for_function() -> Result<Expr, String> {
+    todo!()
 }
 
 impl Expr {
     //returns an option since the expression might contain invalid symbols
     //also, it can only see variables in it's own scope, or scopes above that
-    pub fn untangle_variables(&self, own_scope_id: u32, own_scope_depth: usize, symbols: &mut SymbolTable
-    ) -> Result<Expr, String> {
+    pub fn untangle_variables(&self, own_scope_id: u32, own_scope_depth: usize, symbols: &mut SymbolTable,
+    declarations: &Vec<TopLevel>) -> Result<Expr, String> {
         match self {
             Expr::Number(n) => Ok(self.clone()),
+            //searches for valid variable declarations
             Expr::Label(label) => {
                 match_label(label, own_scope_id, own_scope_depth, symbols)
             },
             Expr::FunctionCall(label, parameters) => {
-
+                search_for_function();
+                todo!()
             },
             Expr::BinaryOp { op, left, right } => {
-
+                todo!()
             }
         }
     }

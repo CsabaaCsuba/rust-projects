@@ -131,7 +131,7 @@ pub struct Function {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TopLevel {
-    Function(Function),
+    Function(Function), //forward declarations are not supported yet
     VarDeclaration {
         var_type: Type,
         name: String,
