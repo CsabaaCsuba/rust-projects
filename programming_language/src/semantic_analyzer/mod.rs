@@ -22,8 +22,7 @@ pub struct SymbolTable {
     scope_id: u32,
 }
 
-
-
+#[derive(Debug, Clone, PartialEq)]
 pub enum AnnotatedStatement {
     VarDeclaration {
         var_type: Type,
@@ -61,6 +60,12 @@ pub enum AnnotatedStatement {
     Expression(Expr), // Expressions are statements
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnnotatedBlock {
+    statements: Vec<AnnotatedStatement>
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct AnnotatedFunction {
     pub return_type: Type,
     pub name: String,
@@ -68,21 +73,56 @@ pub struct AnnotatedFunction {
     pub body: Block,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct AnnotatedGlobalVar {
     pub _type: Type,
     pub name: String,
     pub value: Expr,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct AnnotatedTopLevel {
     pub expressions: Expr,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct FunctionRegistry {
+    functions: Vec<AnnotatedFunction>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AnnotatedProgram {
+    pub declarations: Vec<AnnotatedTopLevel>,
+}
+
+
+fn check_statement(stmt: Statement, declared_functions: &mut FunctionRegistry, 
+    symbol_table: &mut SymbolTable, current_scope: usize, scope_id: u32) -> Result<AnnotatedStatement, String> {
+    match stmt {
+        Statement::VarDeclaration { var_type, name, initializer } => {
+            //ensure that variable hasn't been declared yet, and convert the expr's type
+            //add the variable to the symbol table
+            //also ensure that the expression doesn't contain any undefined symbols
+            
+        },
+        Statement::Assignment { name, value } => {
+            //ensure that variable exists, and conver the expr's type
+            //also ensure that the expression doesn't contain any undefined symbols
+        },
+        Statement::FunctionCall { name, args } => {
+            //ensure that the function exists, and has the right parameters
+        },
+        others => todo!()
+        
+    }
+}
 
 impl Program {
-    pub fn annotated_statement(&self) -> Result<AnnotatedTopLevel, String> {
+    pub fn annotated_statement(&self) -> Result<AnnotatedProgram, String> {
         //just a default value, do not use this
-        let mut semantic_tree: AnnotatedTopLevel = AnnotatedTopLevel { expressions: Expr::Number(NumericValue::Char(0)) };
+        let mut semantic_tree = AnnotatedProgram { declarations: Vec::new() };
+
+        let mut function_reg = FunctionRegistry {functions: Vec::new()};
 
         let program = self.declarations.clone();
         let mut root_symbol_table = SymbolTable {
@@ -96,7 +136,24 @@ impl Program {
         for item in program.clone() {
             match item {
                 TopLevel::Function(f) => {
-                    todo!()
+                    //add the functions to a function registry
+                    //then parse the function's block, and produce an annotatedblock
+                    let annotated_function = AnnotatedFunction{
+                        return_type: f.return_type,
+                        name: f.name,
+                        parameters: f.parameters,
+                        body: Block { statements: Vec::new() }
+                    };
+
+                    function_reg.functions.push(annotated_function.clone());
+
+                    let mut annotated_block = AnnotatedBlock { statements: Vec::new()};
+
+                    for stmt in annotated_function.body.statements {
+                        annotated_block.statements.push(check_statement(stmt)?);
+                    }
+                    
+
                 },
                 TopLevel::VarDeclaration { var_type, name, initializer } => {
                     match initializer {
