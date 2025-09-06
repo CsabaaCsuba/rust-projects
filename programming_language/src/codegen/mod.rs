@@ -1,4 +1,3 @@
-
 // use crate::tokens::*;
 // use crate::*;
 // use crate::ast_parser::*;
@@ -16,7 +15,7 @@
 //                 match &tokens[i+1]{
 //                     Token::Identifier(func_name) => {
 
-//                         if func_name == ENTRY_NAME && 
+//                         if func_name == ENTRY_NAME &&
 //                         tokens[i+2] == Token::Delimiter(Delimiter::LeftParen) &&
 //                         tokens[i+3] == Token::Keyword(Keyword::Void) &&
 //                         tokens[i+4] == Token::Delimiter(Delimiter::RightParen) &&
@@ -48,7 +47,6 @@
 
 // pub fn expression(expr: &Expr) -> Result<String, String> {
 //     let mut raw_asm = String::new();
-
 
 //     Ok(raw_asm)
 // }
@@ -87,7 +85,6 @@
 //         mov rdi, 4
 //         syscall
 //     */
-    
 //     match function {
 //         FunctionDec { label, return_type, params, statement_block } => {
 //             let is_main = if label == "main"{
@@ -102,7 +99,7 @@
 //             else {
 //                 raw_asm += &format!("{}:\n", label);
 //             }
-            
+
 //             raw_asm += "\tpush rbp\n"; //saves the current frame pointer to the stack
 //             raw_asm += "\tmov rbp, rsp\n"; //the new frame pointer becomes the stack pointer
 
@@ -145,13 +142,11 @@
 //                                                     block_string += "\tpop rbp\n\tsyscall\n";
 //                                                 }
 //                                                 else {
-                                                    
+
 //                                                     block_string += &format!("\tmov eax, {}\n", solution as i64);
 //                                                     block_string += "\tpop rbp\n\tret\n";
 //                                                 }
-                                                
-                                                
-                                                
+
 //                                             },
 //                                             None => {
 //                                                 block_string += "\tpop rbp\n\tret\n";
@@ -194,7 +189,7 @@
 //                     raw_asm += &format!("\tmov {}, dword [rbp-{}]\n", REGISTER_LIST[i], (((variable_size_sum/16)+1)*16)+total_parameter_size);
 //                 }
 //                 else { //when a parameter above 6 is reached
-//                     break; 
+//                     break;
 //                     //nothing has to be done, since the variables are pushed to the stack, and can be accessed form rbp+our variables's size + padding (most likely)
 //                 }
 //             }
@@ -229,7 +224,7 @@
 //                         raw_asm += &res;
 //                     },
 //                     VariableDec { label, type_ } => {
-                        
+
 //                     },
 //                     _ => return Err("Nothing else can be in the outer block of the program".to_string())
 //                 }
@@ -238,7 +233,6 @@
 
 //         _ => return Err("Main program should be a program block".to_string())
 //     }
-
 
 //     Ok(raw_asm)
 // }

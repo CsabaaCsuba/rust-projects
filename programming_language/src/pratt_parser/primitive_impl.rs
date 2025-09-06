@@ -21,8 +21,6 @@ impl PrimitiveNumber for i8 {
             NumericValue::Double(i) => *i as i8,
         }
     }
-
-    
 }
 
 impl PrimitiveNumber for u8 {

@@ -1,6 +1,9 @@
 // mod tokens;
 // use tokens::*;
-use crate::{pratt_parser::primitive_impl::PrimitiveNumber, tokens::{Delimiter, Keyword, Operator, Token}};
+use crate::{
+    pratt_parser::primitive_impl::PrimitiveNumber,
+    tokens::{Delimiter, Keyword, Operator, Token},
+};
 use core::num;
 use std::fmt::{self, format};
 
@@ -37,7 +40,6 @@ impl NumericValue {
     }
 }
 
-
 impl fmt::Display for NumericValue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
@@ -55,7 +57,6 @@ impl fmt::Display for NumericValue {
         Ok(())
     }
 }
-
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
@@ -76,19 +77,33 @@ impl Expr {
                 let new_val = match (*n, target) {
                     // signed conversions
                     (NumericValue::Char(v), NumericValue::Char(_)) => NumericValue::Char(v),
-                    (NumericValue::Char(v), NumericValue::Short(_)) => NumericValue::Short(v as i16),
+                    (NumericValue::Char(v), NumericValue::Short(_)) => {
+                        NumericValue::Short(v as i16)
+                    }
                     (NumericValue::Char(v), NumericValue::Int(_)) => NumericValue::Int(v as i32),
                     (NumericValue::Char(v), NumericValue::Long(_)) => NumericValue::Long(v as i64),
-                    (NumericValue::Char(v), NumericValue::Float(_)) => NumericValue::Float(v as f32),
-                    (NumericValue::Char(v), NumericValue::Double(_)) => NumericValue::Double(v as f64),
+                    (NumericValue::Char(v), NumericValue::Float(_)) => {
+                        NumericValue::Float(v as f32)
+                    }
+                    (NumericValue::Char(v), NumericValue::Double(_)) => {
+                        NumericValue::Double(v as f64)
+                    }
 
                     // unsigned conversions
                     (NumericValue::UChar(v), NumericValue::UChar(_)) => NumericValue::UChar(v),
-                    (NumericValue::UChar(v), NumericValue::UShort(_)) => NumericValue::UShort(v as u16),
+                    (NumericValue::UChar(v), NumericValue::UShort(_)) => {
+                        NumericValue::UShort(v as u16)
+                    }
                     (NumericValue::UChar(v), NumericValue::UInt(_)) => NumericValue::UInt(v as u32),
-                    (NumericValue::UChar(v), NumericValue::ULong(_)) => NumericValue::ULong(v as u64),
-                    (NumericValue::UChar(v), NumericValue::Float(_)) => NumericValue::Float(v as f32),
-                    (NumericValue::UChar(v), NumericValue::Double(_)) => NumericValue::Double(v as f64),
+                    (NumericValue::UChar(v), NumericValue::ULong(_)) => {
+                        NumericValue::ULong(v as u64)
+                    }
+                    (NumericValue::UChar(v), NumericValue::Float(_)) => {
+                        NumericValue::Float(v as f32)
+                    }
+                    (NumericValue::UChar(v), NumericValue::Double(_)) => {
+                        NumericValue::Double(v as f64)
+                    }
 
                     // general case: convert everything through f64 if no direct mapping
                     (val, NumericValue::Float(_)) => NumericValue::Float(val.to_f64() as f32),
@@ -119,9 +134,7 @@ impl Expr {
             }
         }
     }
-
 }
-
 
 pub struct ExprParser {
     pub tokens: Vec<Token>,
@@ -156,7 +169,7 @@ impl ExprParser {
                     if bp <= rbp {
                         break;
                     }
-                    
+
                     let op = current_token;
                     self.advance();
                     let right = self.parse_expression(self.rbp(op.clone()))?;
@@ -219,11 +232,19 @@ impl ExprParser {
     fn lbp(&self, token: Token) -> Option<u8> {
         match token {
             Token::Operator(Operator::Plus) | Token::Operator(Operator::Minus) => Some(10),
-            Token::Operator(Operator::PlusAssign) | Token::Operator(Operator::MinusAssign) => Some(10),
-            Token::Operator(Operator::Multiply) | Token::Operator(Operator::Divide) | Token::Operator(Operator::Modulo) => Some(20),
-            Token::Operator(Operator::MultiplyAssign) | Token::Operator(Operator::DivideAssign) | Token::Operator(Operator::ModuloAssign) => Some(20),
-            Token::Operator(Operator::Equal) | Token::Operator(Operator::NotEqual)=> Some(30),
-            Token::Operator(Operator::Greater) | Token::Operator(Operator::GreaterEqual) => Some(30),
+            Token::Operator(Operator::PlusAssign) | Token::Operator(Operator::MinusAssign) => {
+                Some(10)
+            }
+            Token::Operator(Operator::Multiply)
+            | Token::Operator(Operator::Divide)
+            | Token::Operator(Operator::Modulo) => Some(20),
+            Token::Operator(Operator::MultiplyAssign)
+            | Token::Operator(Operator::DivideAssign)
+            | Token::Operator(Operator::ModuloAssign) => Some(20),
+            Token::Operator(Operator::Equal) | Token::Operator(Operator::NotEqual) => Some(30),
+            Token::Operator(Operator::Greater) | Token::Operator(Operator::GreaterEqual) => {
+                Some(30)
+            }
             Token::Operator(Operator::Less) | Token::Operator(Operator::LessEqual) => Some(30),
             Token::Delimiter(Delimiter::RightParen) => None,
             Token::FloatLiteral(_) | Token::Delimiter(Delimiter::LeftParen) | _ => None,
@@ -234,8 +255,12 @@ impl ExprParser {
         match token {
             Token::Operator(Operator::Plus) | Token::Operator(Operator::Minus) => 10,
             Token::Operator(Operator::PlusAssign) | Token::Operator(Operator::MinusAssign) => 10,
-            Token::Operator(Operator::Multiply) | Token::Operator(Operator::Divide) | Token::Operator(Operator::Modulo) => 20,
-            Token::Operator(Operator::MultiplyAssign) | Token::Operator(Operator::DivideAssign) | Token::Operator(Operator::ModuloAssign) => 20,
+            Token::Operator(Operator::Multiply)
+            | Token::Operator(Operator::Divide)
+            | Token::Operator(Operator::Modulo) => 20,
+            Token::Operator(Operator::MultiplyAssign)
+            | Token::Operator(Operator::DivideAssign)
+            | Token::Operator(Operator::ModuloAssign) => 20,
             Token::Operator(Operator::Equal) | Token::Operator(Operator::NotEqual) => 30,
             Token::Operator(Operator::Greater) | Token::Operator(Operator::GreaterEqual) => 30,
             Token::Operator(Operator::Less) | Token::Operator(Operator::LessEqual) => 30,
@@ -243,7 +268,6 @@ impl ExprParser {
         }
     }
 }
-
 
 impl fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -264,8 +288,8 @@ impl fmt::Display for Expr {
                     _ => panic!("Unreachable branch. Invalid binary operator: {:?}", op),
                 }
                 write!(f, "{}", *right)?;
-            },
-            Expr::FunctionCall(a, b) => panic!("todo: implement string display for function calls")
+            }
+            Expr::FunctionCall(a, b) => panic!("todo: implement string display for function calls"),
         }
         Ok(())
     }

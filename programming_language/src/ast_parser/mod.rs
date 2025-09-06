@@ -1,12 +1,12 @@
-use crate::tokens::{Token, Keyword, Operator, Delimiter};
 use crate::pratt_parser::{Expr, ExprParser, NumericValue};
+use crate::tokens::{Delimiter, Keyword, Operator, Token};
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     Void,
     Char,
-    Short, 
+    Short,
     Int,
     Long,
     Float,
@@ -32,7 +32,7 @@ impl Type {
             Type::Pointer(_) => 8,
             Type::Array(_, size) => match size {
                 Some(n) => *n as usize,
-                None => panic!("Idk what to do with unsized arrays")
+                None => panic!("Idk what to do with unsized arrays"),
             },
         }
     }
@@ -107,7 +107,7 @@ pub enum Statement {
     },
     While {
         condition: Option<Expr>,
-        body: Block
+        body: Block,
     },
     Return(Option<Expr>),
     Break,
@@ -201,7 +201,7 @@ impl ASTParser {
 
     fn parse_top_level(&mut self) -> Result<TopLevel, String> {
         let var_type = self.parse_type()?;
-        
+
         if let Some(Token::Identifier(name)) = self.current() {
             let name = name.clone();
             self.advance();
@@ -211,9 +211,9 @@ impl ASTParser {
                 self.advance(); // consume '('
                 let parameters = self.parse_parameter_list()?;
                 self.expect(Token::Delimiter(Delimiter::RightParen))?;
-                
+
                 let body = self.parse_block()?;
-                
+
                 Ok(TopLevel::Function(Function {
                     return_type: var_type,
                     name,
@@ -222,15 +222,16 @@ impl ASTParser {
                 }))
             } else {
                 // Variable declaration
-                let initializer = if matches!(self.current(), Some(Token::Operator(Operator::Assign))) {
-                    self.advance(); // consume '='
-                    Some(self.parse_expression()?)
-                } else {
-                    None
-                };
+                let initializer =
+                    if matches!(self.current(), Some(Token::Operator(Operator::Assign))) {
+                        self.advance(); // consume '='
+                        Some(self.parse_expression()?)
+                    } else {
+                        None
+                    };
 
                 self.expect(Token::Delimiter(Delimiter::Semicolon))?;
-                
+
                 Ok(TopLevel::VarDeclaration {
                     var_type,
                     name,
@@ -245,19 +246,22 @@ impl ASTParser {
     fn parse_parameter_list(&mut self) -> Result<Vec<Parameter>, String> {
         let mut params = Vec::new();
 
-        if matches!(self.current(), Some(Token::Delimiter(Delimiter::RightParen))) {
+        if matches!(
+            self.current(),
+            Some(Token::Delimiter(Delimiter::RightParen))
+        ) {
             return Ok(params);
         }
 
         loop {
             let param_type = self.parse_type()?;
-            
+
             if let Some(Token::Identifier(name)) = self.current() {
                 let name = name.clone();
                 self.advance();
-                
+
                 params.push(Parameter { param_type, name });
-                
+
                 if matches!(self.current(), Some(Token::Operator(Operator::Comma))) {
                     self.advance();
                     continue;
@@ -326,15 +330,19 @@ impl ASTParser {
 
     pub fn parse_block(&mut self) -> Result<Block, String> {
         self.expect(Token::Delimiter(Delimiter::LeftBrace))?;
-        
+
         let mut statements = Vec::new();
 
-        while !matches!(self.current(), Some(Token::Delimiter(Delimiter::RightBrace))) && !self.is_at_end() {
+        while !matches!(
+            self.current(),
+            Some(Token::Delimiter(Delimiter::RightBrace))
+        ) && !self.is_at_end()
+        {
             statements.push(self.parse_statement()?);
         }
 
         self.expect(Token::Delimiter(Delimiter::RightBrace))?;
-        
+
         Ok(Block { statements })
     }
 
@@ -343,22 +351,17 @@ impl ASTParser {
             Some(Token::Delimiter(Delimiter::LeftBrace)) => {
                 Ok(Statement::Block(self.parse_block()?))
             }
-            Some(Token::Keyword(Keyword::If)) => {
-                self.parse_if_statement()
-            }
-            Some(Token::Keyword(Keyword::For)) => {
-                self.parse_for_statement()
-            }
-            Some(Token::Keyword(Keyword::While)) => {
-                self.parse_while_statement()
-            }
+            Some(Token::Keyword(Keyword::If)) => self.parse_if_statement(),
+            Some(Token::Keyword(Keyword::For)) => self.parse_for_statement(),
+            Some(Token::Keyword(Keyword::While)) => self.parse_while_statement(),
             Some(Token::Keyword(Keyword::Return)) => {
                 self.advance();
-                let value = if matches!(self.current(), Some(Token::Delimiter(Delimiter::Semicolon))) {
-                    None
-                } else {
-                    Some(self.parse_expression()?)
-                };
+                let value =
+                    if matches!(self.current(), Some(Token::Delimiter(Delimiter::Semicolon))) {
+                        None
+                    } else {
+                        Some(self.parse_expression()?)
+                    };
                 self.expect(Token::Delimiter(Delimiter::Semicolon))?;
                 Ok(Statement::Return(value))
             }
@@ -375,20 +378,21 @@ impl ASTParser {
             Some(Token::Keyword(_)) => {
                 // Type keyword - variable declaration
                 let var_type = self.parse_type()?;
-                
+
                 if let Some(Token::Identifier(name)) = self.current() {
                     let name = name.clone();
                     self.advance();
 
-                    let initializer = if matches!(self.current(), Some(Token::Operator(Operator::Assign))) {
-                        self.advance();
-                        Some(self.parse_expression()?)
-                    } else {
-                        None
-                    };
+                    let initializer =
+                        if matches!(self.current(), Some(Token::Operator(Operator::Assign))) {
+                            self.advance();
+                            Some(self.parse_expression()?)
+                        } else {
+                            None
+                        };
 
                     self.expect(Token::Delimiter(Delimiter::Semicolon))?;
-                    
+
                     Ok(Statement::VarDeclaration {
                         var_type,
                         name,
@@ -441,9 +445,9 @@ impl ASTParser {
         self.expect(Token::Delimiter(Delimiter::LeftParen))?;
         let condition = self.parse_expression()?;
         self.expect(Token::Delimiter(Delimiter::RightParen))?;
-        
+
         let then_block = self.parse_block()?;
-        
+
         let else_block = if matches!(self.current(), Some(Token::Keyword(Keyword::Else))) {
             self.advance();
             Some(self.parse_block()?)
@@ -478,7 +482,7 @@ impl ASTParser {
     fn parse_for_statement(&mut self) -> Result<Statement, String> {
         self.expect(Token::Keyword(Keyword::For))?;
         self.expect(Token::Delimiter(Delimiter::LeftParen))?;
-        
+
         // Init statement
         let init = if matches!(self.current(), Some(Token::Delimiter(Delimiter::Semicolon))) {
             self.advance();
@@ -499,7 +503,10 @@ impl ASTParser {
         };
 
         // Increment
-        let increment = if matches!(self.current(), Some(Token::Delimiter(Delimiter::RightParen))) {
+        let increment = if matches!(
+            self.current(),
+            Some(Token::Delimiter(Delimiter::RightParen))
+        ) {
             None
         } else {
             // Parse as assignment or expression without expecting semicolon
@@ -537,13 +544,16 @@ impl ASTParser {
     fn parse_argument_list(&mut self) -> Result<Vec<Expr>, String> {
         let mut args = Vec::new();
 
-        if matches!(self.current(), Some(Token::Delimiter(Delimiter::RightParen))) {
+        if matches!(
+            self.current(),
+            Some(Token::Delimiter(Delimiter::RightParen))
+        ) {
             return Ok(args);
         }
 
         loop {
             args.push(self.parse_expression()?);
-            
+
             if matches!(self.current(), Some(Token::Operator(Operator::Comma))) {
                 self.advance();
                 continue;
@@ -560,10 +570,10 @@ impl ASTParser {
         let remaining_tokens = self.tokens[self.pos..].to_vec();
         let mut expr_parser = ExprParser::new(remaining_tokens);
         let expr = expr_parser.parse_expression(0)?;
-        
+
         // Update our position based on how many tokens the expression parser consumed
         self.pos += expr_parser.pos;
-        
+
         Ok(expr)
     }
 }
@@ -571,7 +581,11 @@ impl ASTParser {
 impl fmt::Display for Statement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Statement::VarDeclaration { var_type, name, initializer } => {
+            Statement::VarDeclaration {
+                var_type,
+                name,
+                initializer,
+            } => {
                 write!(f, "{} {}", var_type, name)?;
                 if let Some(init) = initializer {
                     write!(f, " = {}", init)?;
@@ -584,12 +598,18 @@ impl fmt::Display for Statement {
             Statement::FunctionCall { name, args } => {
                 write!(f, "{}(", name)?;
                 for (i, arg) in args.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", arg)?;
                 }
                 write!(f, ");")
             }
-            Statement::If { condition, then_block, else_block } => {
+            Statement::If {
+                condition,
+                then_block,
+                else_block,
+            } => {
                 write!(f, "if ({}) {{\n", condition)?;
                 for stmt in &then_block.statements {
                     write!(f, "  {}\n", stmt)?;
@@ -604,7 +624,12 @@ impl fmt::Display for Statement {
                 }
                 Ok(())
             }
-            Statement::For { init, condition, increment, body } => {
+            Statement::For {
+                init,
+                condition,
+                increment,
+                body,
+            } => {
                 write!(f, "for (")?;
                 if let Some(i) = init {
                     write!(f, "{}", i)?;
@@ -625,7 +650,7 @@ impl fmt::Display for Statement {
                 }
                 write!(f, "}}")
             }
-            Statement::While {condition, body} => {
+            Statement::While { condition, body } => {
                 write!(f, "while (")?;
                 if let Some(cond) = condition.clone() {
                     write!(f, "{}", cond)?;
@@ -635,7 +660,7 @@ impl fmt::Display for Statement {
                     write!(f, "  {}\n", stmt)?;
                 }
                 write!(f, "}}")
-            },
+            }
             Statement::Return(expr) => {
                 write!(f, "return")?;
                 if let Some(e) = expr {
@@ -661,7 +686,9 @@ impl fmt::Display for Function {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} {}(", self.return_type, self.name)?;
         for (i, param) in self.parameters.iter().enumerate() {
-            if i > 0 { write!(f, ", ")?; }
+            if i > 0 {
+                write!(f, ", ")?;
+            }
             write!(f, "{} {}", param.param_type, param.name)?;
         }
         write!(f, ") {{\n")?;
@@ -682,7 +709,7 @@ mod tests {
         let tokens = tokenize("int main() { return 0; }".to_string());
         let mut parser = ASTParser::new(tokens);
         let program = parser.parse_program().expect("Failed to parse");
-        
+
         assert_eq!(program.declarations.len(), 1);
         match &program.declarations[0] {
             TopLevel::Function(f) => {
@@ -699,10 +726,14 @@ mod tests {
         let tokens = tokenize("int x = 5;".to_string());
         let mut parser = ASTParser::new(tokens);
         let program = parser.parse_program().expect("Failed to parse");
-        
+
         assert_eq!(program.declarations.len(), 1);
         match &program.declarations[0] {
-            TopLevel::VarDeclaration { var_type, name, initializer } => {
+            TopLevel::VarDeclaration {
+                var_type,
+                name,
+                initializer,
+            } => {
                 assert_eq!(name, "x");
                 assert!(matches!(var_type, Type::Int));
                 assert!(initializer.is_some());
@@ -716,7 +747,7 @@ mod tests {
         let tokens = tokenize("int main() { if (x == 0) { return 1; } }".to_string());
         let mut parser = ASTParser::new(tokens);
         let program = parser.parse_program().expect("Failed to parse");
-        
+
         if let TopLevel::Function(f) = &program.declarations[0] {
             assert_eq!(f.body.statements.len(), 1);
             assert!(matches!(f.body.statements[0], Statement::If { .. }));
@@ -727,36 +758,43 @@ mod tests {
 
     #[test]
     fn test_for_loop() {
-        let tokens = tokenize("int main() { for (int i = 0; i < 10; i = i + 1) { break; } }".to_string());
+        let tokens =
+            tokenize("int main() { for (int i = 0; i < 10; i = i + 1) { break; } }".to_string());
         let mut parser = ASTParser::new(tokens);
         let program = parser.parse_program().expect("Failed to parse");
-        
+
         if let TopLevel::Function(f) = &program.declarations[0] {
             assert_eq!(f.body.statements.len(), 1);
-            let init = Some(
-                Box::new(Statement::VarDeclaration { 
-                    var_type: Type::Int, name: String::from("i"), initializer: Some(Expr::Number(NumericValue::Long(0)))}));
-            let condition = Some(
-                Expr::BinaryOp { op: Token::Operator(Operator::Less), 
-                    left: Box::new(Expr::Label(String::from("i"))), 
-                    right: Box::new(Expr::Number(NumericValue::Long(10))) 
-                }
-            );
-            let increment = Some(Statement::Assignment { 
-                name: String::from("i"), 
-                value: Expr::BinaryOp { op: Token::Operator(Operator::Assign), 
-                    left: Box::new(Expr::Label(String::from("i"))), 
-                    right: Box::new(Expr::Number(NumericValue::Long(1))) 
-                }
-            });
-            let block = Block{statements: vec![Statement::Break]
-            };
-            assert!(matches!(f.body.statements[0].clone(), Statement::For {
-                init,
-                condition,
-                increment,
-                body
+            let init = Some(Box::new(Statement::VarDeclaration {
+                var_type: Type::Int,
+                name: String::from("i"),
+                initializer: Some(Expr::Number(NumericValue::Long(0))),
             }));
+            let condition = Some(Expr::BinaryOp {
+                op: Token::Operator(Operator::Less),
+                left: Box::new(Expr::Label(String::from("i"))),
+                right: Box::new(Expr::Number(NumericValue::Long(10))),
+            });
+            let increment = Some(Statement::Assignment {
+                name: String::from("i"),
+                value: Expr::BinaryOp {
+                    op: Token::Operator(Operator::Assign),
+                    left: Box::new(Expr::Label(String::from("i"))),
+                    right: Box::new(Expr::Number(NumericValue::Long(1))),
+                },
+            });
+            let block = Block {
+                statements: vec![Statement::Break],
+            };
+            assert!(matches!(
+                f.body.statements[0].clone(),
+                Statement::For {
+                    init,
+                    condition,
+                    increment,
+                    body
+                }
+            ));
             // panic!("{:?}", f);
         } else {
             panic!("Expected function");
@@ -764,8 +802,11 @@ mod tests {
     }
 
     #[test]
-    fn test_while1(){
-        let tokens = tokenize("int loop_max = 100; int main() { int i = 0; while( i < loop_max ) { i += 1; } }".to_string());
+    fn test_while1() {
+        let tokens = tokenize(
+            "int loop_max = 100; int main() { int i = 0; while( i < loop_max ) { i += 1; } }"
+                .to_string(),
+        );
         let mut parser = ASTParser::new(tokens);
         let program = parser.parse_program().expect("Failed to parse");
 
@@ -773,30 +814,44 @@ mod tests {
 
         let body: Block = Block {
             statements: vec![
-                Statement::VarDeclaration { var_type: Type::Int, name: String::from("i"), initializer: Some(Expr::Number(NumericValue::Long(0))) },
-                Statement::While { condition: Some(Expr::BinaryOp { 
-                    op: Token::Operator(Operator::Less), 
-                    left: Box::new(Expr::Label(String::from("i"))), 
-                    right: Box::new(Expr::Label(String::from("loop_max")))}), 
-                    body: Block { statements: vec![Statement::Expression(Expr::BinaryOp { 
-                        op: Token::Operator(Operator::PlusAssign), 
-                        left: Box::new(Expr::Label(String::from("i"))), 
-                        right: Box::new(Expr::Number(NumericValue::Long(1))) })] 
-                    }
-                }
-            ]
+                Statement::VarDeclaration {
+                    var_type: Type::Int,
+                    name: String::from("i"),
+                    initializer: Some(Expr::Number(NumericValue::Long(0))),
+                },
+                Statement::While {
+                    condition: Some(Expr::BinaryOp {
+                        op: Token::Operator(Operator::Less),
+                        left: Box::new(Expr::Label(String::from("i"))),
+                        right: Box::new(Expr::Label(String::from("loop_max"))),
+                    }),
+                    body: Block {
+                        statements: vec![Statement::Expression(Expr::BinaryOp {
+                            op: Token::Operator(Operator::PlusAssign),
+                            left: Box::new(Expr::Label(String::from("i"))),
+                            right: Box::new(Expr::Number(NumericValue::Long(1))),
+                        })],
+                    },
+                },
+            ],
         };
 
-        let function = Function {return_type: Type::Int, name: String::from("main"), parameters, body};
+        let function = Function {
+            return_type: Type::Int,
+            name: String::from("main"),
+            parameters,
+            body,
+        };
 
         let program_ast: Vec<TopLevel> = vec![
-            TopLevel::VarDeclaration { var_type: Type::Int, name: String::from("loop_max"), initializer: Some(Expr::Number(NumericValue::Long(100))) },
-            TopLevel::Function(function)
+            TopLevel::VarDeclaration {
+                var_type: Type::Int,
+                name: String::from("loop_max"),
+                initializer: Some(Expr::Number(NumericValue::Long(100))),
+            },
+            TopLevel::Function(function),
         ];
 
-        assert_eq!(
-            program.declarations,
-            program_ast
-        );
+        assert_eq!(program.declarations, program_ast);
     }
 }

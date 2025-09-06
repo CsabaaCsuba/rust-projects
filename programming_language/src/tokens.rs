@@ -7,17 +7,17 @@ pub enum Token {
     FloatLiteral(f64),
     CharLiteral(char),
     StringLiteral(String),
-    
+
     // Identifiers and keywords
     Identifier(String),
     Keyword(Keyword),
-    
+
     // Operators
     Operator(Operator),
-    
+
     // Delimiters
     Delimiter(Delimiter),
-    
+
     // Special tokens
     Newline,
     Whitespace,
@@ -28,20 +28,44 @@ pub enum Token {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Keyword {
     // Storage classes
-    Auto, Register, Static, Extern, Typedef,
-    
+    Auto,
+    Register,
+    Static,
+    Extern,
+    Typedef,
+
     // Type specifiers
-    Void, Char, Short, Int, Long, Float, Double, Signed, Unsigned,
-    Struct, Union, Enum,
-    
+    Void,
+    Char,
+    Short,
+    Int,
+    Long,
+    Float,
+    Double,
+    Signed,
+    Unsigned,
+    Struct,
+    Union,
+    Enum,
+
     // Type qualifiers
-    Const, Volatile,
-    
+    Const,
+    Volatile,
+
     // Control flow
-    If, Else, Switch, Case, Default,
-    While, For, Do, Break, Continue,
-    Goto, Return,
-    
+    If,
+    Else,
+    Switch,
+    Case,
+    Default,
+    While,
+    For,
+    Do,
+    Break,
+    Continue,
+    Goto,
+    Return,
+
     // Other
     Sizeof,
 }
@@ -49,41 +73,69 @@ pub enum Keyword {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Operator {
     // Arithmetic
-    Plus, Minus, Multiply, Divide, Modulo,
-    
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    Modulo,
+
     // Assignment
     Assign,
-    PlusAssign, MinusAssign, MultiplyAssign, DivideAssign, ModuloAssign,
-    BitwiseAndAssign, BitwiseOrAssign, BitwiseXorAssign,
-    LeftShiftAssign, RightShiftAssign,
-    
+    PlusAssign,
+    MinusAssign,
+    MultiplyAssign,
+    DivideAssign,
+    ModuloAssign,
+    BitwiseAndAssign,
+    BitwiseOrAssign,
+    BitwiseXorAssign,
+    LeftShiftAssign,
+    RightShiftAssign,
+
     // Comparison
-    Equal, NotEqual, Less, Greater, LessEqual, GreaterEqual,
-    
+    Equal,
+    NotEqual,
+    Less,
+    Greater,
+    LessEqual,
+    GreaterEqual,
+
     // Logical
-    LogicalAnd, LogicalOr, LogicalNot,
-    
+    LogicalAnd,
+    LogicalOr,
+    LogicalNot,
+
     // Bitwise
-    BitwiseAnd, BitwiseOr, BitwiseXor, BitwiseNot,
-    LeftShift, RightShift,
-    
+    BitwiseAnd,
+    BitwiseOr,
+    BitwiseXor,
+    BitwiseNot,
+    LeftShift,
+    RightShift,
+
     // Unary
-    Increment, Decrement,
-    AddressOf, Dereference,
-    
+    Increment,
+    Decrement,
+    AddressOf,
+    Dereference,
+
     // Other
     Conditional, // ?
     Comma,
-    Arrow, Dot, // -> and .
+    Arrow,
+    Dot, // -> and .
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Delimiter {
-    LeftParen, RightParen,       // ( )
-    LeftBrace, RightBrace,       // { }
-    LeftBracket, RightBracket,   // [ ]
-    Semicolon,                   // ;
-    Colon,                       // :
+    LeftParen,
+    RightParen, // ( )
+    LeftBrace,
+    RightBrace, // { }
+    LeftBracket,
+    RightBracket, // [ ]
+    Semicolon,    // ;
+    Colon,        // :
 }
 
 pub fn print_tokens(tokens: &[Token]) {
@@ -107,13 +159,13 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                 // output.push(Token::Whitespace);
                 i += 1;
             }
-            
+
             // Newlines
             '\n' => {
                 // output.push(Token::Newline);
                 i += 1;
             }
-            
+
             // Comments
             '/' if i + 1 < chars.len() => {
                 if chars[i + 1] == '/' {
@@ -149,7 +201,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     i += 1;
                 }
             }
-            
+
             // String literals
             '"' => {
                 i += 1; // Skip opening quote
@@ -181,7 +233,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                 }
                 output.push(Token::StringLiteral(string_val));
             }
-            
+
             // Character literals
             '\'' => {
                 i += 1; // Skip opening quote
@@ -210,12 +262,12 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                 }
                 output.push(Token::CharLiteral(char_val));
             }
-            
+
             // Numbers
             '0'..='9' => {
                 let start = i;
                 let mut has_dot = false;
-                
+
                 while i < chars.len() && (chars[i].is_ascii_digit() || chars[i] == '.') {
                     if chars[i] == '.' {
                         if has_dot {
@@ -225,7 +277,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     }
                     i += 1;
                 }
-                
+
                 let num_str: String = chars[start..i].iter().collect();
                 if has_dot {
                     if let Ok(val) = num_str.parse::<f64>() {
@@ -235,13 +287,12 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     //if it fits in i64, else use u64
                     if let Ok(val) = num_str.parse::<i64>() {
                         output.push(Token::IntLiteral(val));
-                    }
-                    else {
+                    } else {
                         output.push(Token::UintLiteral(num_str.parse::<u64>().unwrap()))
                     }
                 }
             }
-            
+
             // Identifiers and keywords
             'a'..='z' | 'A'..='Z' | '_' => {
                 let start = i;
@@ -249,7 +300,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     i += 1;
                 }
                 let ident: String = chars[start..i].iter().collect();
-                
+
                 let token = match ident.as_str() {
                     "auto" => Token::Keyword(Keyword::Auto),
                     "register" => Token::Keyword(Keyword::Register),
@@ -287,7 +338,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                 };
                 output.push(token);
             }
-            
+
             // Delimiters
             '(' => {
                 output.push(Token::Delimiter(Delimiter::LeftParen));
@@ -321,7 +372,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                 output.push(Token::Delimiter(Delimiter::Colon));
                 i += 1;
             }
-            
+
             // Operators
             '+' => {
                 if i + 1 < chars.len() {
@@ -344,7 +395,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     i += 1;
                 }
             }
-            
+
             '-' => {
                 if i + 1 < chars.len() {
                     match chars[i + 1] {
@@ -370,7 +421,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     i += 1;
                 }
             }
-            
+
             '*' => {
                 if i + 1 < chars.len() && chars[i + 1] == '=' {
                     output.push(Token::Operator(Operator::MultiplyAssign));
@@ -380,7 +431,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     i += 1;
                 }
             }
-            
+
             '%' => {
                 if i + 1 < chars.len() && chars[i + 1] == '=' {
                     output.push(Token::Operator(Operator::ModuloAssign));
@@ -390,7 +441,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     i += 1;
                 }
             }
-            
+
             '=' => {
                 if i + 1 < chars.len() && chars[i + 1] == '=' {
                     output.push(Token::Operator(Operator::Equal));
@@ -400,7 +451,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     i += 1;
                 }
             }
-            
+
             '!' => {
                 if i + 1 < chars.len() && chars[i + 1] == '=' {
                     output.push(Token::Operator(Operator::NotEqual));
@@ -410,7 +461,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     i += 1;
                 }
             }
-            
+
             '<' => {
                 if i + 1 < chars.len() {
                     match chars[i + 1] {
@@ -437,7 +488,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     i += 1;
                 }
             }
-            
+
             '>' => {
                 if i + 1 < chars.len() {
                     match chars[i + 1] {
@@ -464,7 +515,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     i += 1;
                 }
             }
-            
+
             '&' => {
                 if i + 1 < chars.len() {
                     match chars[i + 1] {
@@ -486,7 +537,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     i += 1;
                 }
             }
-            
+
             '|' => {
                 if i + 1 < chars.len() {
                     match chars[i + 1] {
@@ -508,7 +559,7 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     i += 1;
                 }
             }
-            
+
             '^' => {
                 if i + 1 < chars.len() && chars[i + 1] == '=' {
                     output.push(Token::Operator(Operator::BitwiseXorAssign));
@@ -518,27 +569,27 @@ pub fn tokenize(raw_code: String) -> Vec<Token> {
                     i += 1;
                 }
             }
-            
+
             '~' => {
                 output.push(Token::Operator(Operator::BitwiseNot));
                 i += 1;
             }
-            
+
             '?' => {
                 output.push(Token::Operator(Operator::Conditional));
                 i += 1;
             }
-            
+
             ',' => {
                 output.push(Token::Operator(Operator::Comma));
                 i += 1;
             }
-            
+
             '.' => {
                 output.push(Token::Operator(Operator::Dot));
                 i += 1;
             }
-            
+
             // Skip unknown characters
             _ => {
                 i += 1;
