@@ -38,6 +38,21 @@ impl NumericValue {
             NumericValue::Double(v) => *v,
         }
     }
+
+    pub fn size_bytes(&self) -> usize {
+        match self {
+            NumericValue::Char(_) => 1,
+            NumericValue::UChar(_) => 1,
+            NumericValue::Short(_) => 2,
+            NumericValue::UShort(_) => 2,
+            NumericValue::Int(_) => 4,
+            NumericValue::UInt(_) => 4,
+            NumericValue::Long(_) => 8,
+            NumericValue::ULong(_) => 8,
+            NumericValue::Float(_) => 4,
+            NumericValue::Double(_) => 8,
+        }
+    }
 }
 
 impl fmt::Display for NumericValue {
@@ -71,6 +86,7 @@ pub enum Expr {
 }
 
 impl Expr {
+    //todo: change it to spit out a new NumericValue instead of modifying the old one
     pub fn coerce_to(&mut self, target: &NumericValue) {
         match self {
             Expr::Number(n) => {
