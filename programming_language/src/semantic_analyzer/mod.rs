@@ -1,5 +1,5 @@
 use rand::{Rng, RngCore};
-use std::{collections::HashMap, fmt::format, hash::Hash, rc::Weak, thread::scope};
+use std::{collections::HashMap, fmt::format, hash::Hash, sync::{Arc, Mutex, Weak}, thread::scope};
 
 use crate::{ast_parser::{Block, Parameter, Program, Statement, TopLevel, Type}, pratt_parser::{Expr, NumericValue}};
 
@@ -12,12 +12,16 @@ pub struct SymbolTable {
     scope_level: usize, //level 0 is the root
     scope_size: usize, //number of bytes stored for this scope on the stack
     scope_id: u32,
-    parent: Option<Weak<SymbolTable>>,
+    parent: Option<Weak<Mutex<SymbolTable>>>,
 }
 
 impl SymbolTable {
-    pub fn new(scope_level: usize) -> Self {
-        SymbolTable { scope_variables: HashMap::new(), children: Vec::new(), scope_level, scope_size: 0, scope_id: rand::rng().next_u32() }
+    pub fn new(scope_level: usize, parent: Option<Arc<Mutex<SymbolTable>>>) -> Self {
+        let parent = match parent {
+            Some(ptr) => Some(Arc::downgrade(&ptr)),
+            None => None
+        };
+        SymbolTable { scope_variables: HashMap::new(), children: Vec::new(), scope_level, scope_size: 0, scope_id: rand::rng().next_u32(), parent }
     }
 }
 
@@ -96,7 +100,7 @@ pub struct AnnotatedProgram {
 
 fn check_and_convert_expr(root_symbol_table: &SymbolTable, label: &String, max_depth: usize) -> Result<Expr, String> {
     if max_depth > root_symbol_table.scope_level {
-        return Err(format!("Variable {} was not found in it's scope and scopes above it"));
+        return Err(format!("Variable {} was not found in it's scope and scopes above it", label));
     }
     match root_symbol_table.scope_variables.get(label) {
         Some((size, expr)) => {
@@ -162,13 +166,14 @@ impl Program {
         let mut function_reg = FunctionRegistry {functions: Vec::new()};
 
         let program = self.declarations.clone();
-        let mut root_symbol_table = SymbolTable {
+        let mut root_symbol_table = Arc::new(Mutex::new(SymbolTable {
             scope_variables: HashMap::new(),
             children: Vec::new(),
             scope_level: 0,
             scope_size: 0,
-            scope_id: rand::rng().random()
-        };
+            scope_id: rand::rng().random(),
+            parent: None,
+        }));
 
         for item in program.clone() {
             match item {
@@ -184,7 +189,7 @@ impl Program {
 
                     function_reg.functions.push(annotated_function.clone());
 
-                    let mut symbol_table = SymbolTable::new(1);
+                    let mut symbol_table = SymbolTable::new(1, Some(root_symbol_table));
                     let mut annotated_block = AnnotatedBlock { statements: Vec::new()};
 
 
@@ -197,10 +202,10 @@ impl Program {
                 TopLevel::VarDeclaration { var_type, name, initializer } => {
                     match initializer {
                         Some(expression) => {
+                            let root_unpacked = root_symbol_table.lock().unwrap();
                             match expression.untangle_variables(
-                                root_symbol_table.scope_id,
-                                root_symbol_table.scope_level,
-                                 &mut root_symbol_table,
+                                &root_unpacked,
+                                &root_unpacked,
                                 &function_reg) {
                                 Ok(mut valid_expr) => {
                                     valid_expr.coerce_to(&var_type.to_numeric_value().expect("void variables are incorrect"));
@@ -209,7 +214,9 @@ impl Program {
                                 Err(str) => panic!("invalid global variable: {str}") 
                             }
                         },
-                        None =>{root_symbol_table.scope_variables.insert(name.clone(), (var_type.size(), None));}
+                        None =>{
+                            root_symbol_table.scope_variables.insert(name.clone(), (var_type.size(), None));
+                        }
                     }
                 }
             }
@@ -281,13 +288,13 @@ pub fn search_for_function() -> Result<Expr, String> {
 impl Expr {
     //returns an option since the expression might contain invalid symbols
     //also, it can only see variables in it's own scope, or scopes above that
-    pub fn untangle_variables(&self, own_scope_id: u32, own_scope_depth: usize, symbols: &SymbolTable,
+    pub fn untangle_variables(&self, own_scope: &SymbolTable, root_symbol_table: &SymbolTable,
     function_reg: &FunctionRegistry) -> Result<Expr, String> {
         match self {
             Expr::Number(n) => Ok(self.clone()),
             //searches for valid variable declarations
             Expr::Label(label) => {
-                match_label(label, own_scope_id, own_scope_depth, symbols)
+                match_label(label, own_scope.scope_id, own_scope.scope_level, root_symbol_table)
             },
             Expr::FunctionCall(label, parameters) => {
                 search_for_function();
