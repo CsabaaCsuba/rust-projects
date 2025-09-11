@@ -1,24 +1,25 @@
 use rand::{Rng, RngCore};
-use std::{collections::HashMap, fmt::format, hash::Hash, sync::{Arc, Mutex, Weak}, thread::scope};
+use std::{clone, collections::HashMap, fmt::format, hash::Hash, sync::{Arc, Mutex, Weak}, thread::scope};
 
-use crate::{ast_parser::{Block, Parameter, Program, Statement, TopLevel, Type}, pratt_parser::{Expr, NumericValue}};
+use crate::{ast_parser::{Block, Parameter, Program, Statement, TopLevel, Type}, pratt_parser::{Expr, NumericValue},  tokens::{Token, Operator}};
+
 
 
 #[derive(Debug, Clone)]
 pub struct SymbolTable {
     //usize = size of their values, SymbolValue = stores if symbol has a defined value, and the value
-    scope_variables: HashMap<String, (usize, Option<Expr>)>,
-    children: Vec<SymbolTable>,
+    scope_variables: HashMap<String, (Type, usize, Option<Expr>)>,
+    children: Vec<SymbolTable>, //this might be taken out
     scope_level: usize, //level 0 is the root
     scope_size: usize, //number of bytes stored for this scope on the stack
     scope_id: u32,
-    parent: Option<Weak<Mutex<SymbolTable>>>,
+    parent: Option<Weak<Mutex<SymbolTable>>>, //the pointer to tha parent is necessary
 }
 
 impl SymbolTable {
-    pub fn new(scope_level: usize, parent: Option<Arc<Mutex<SymbolTable>>>) -> Self {
+    pub fn new(scope_level: usize, parent: Option<&Arc<Mutex<SymbolTable>>>) -> Self {
         let parent = match parent {
-            Some(ptr) => Some(Arc::downgrade(&ptr)),
+            Some(ptr) => Some(Arc::downgrade(ptr)),
             None => None
         };
         SymbolTable { scope_variables: HashMap::new(), children: Vec::new(), scope_level, scope_size: 0, scope_id: rand::rng().next_u32(), parent }
@@ -98,25 +99,12 @@ pub struct AnnotatedProgram {
     pub declarations: Vec<AnnotatedTopLevel>,
 }
 
-fn check_and_convert_expr(root_symbol_table: &SymbolTable, label: &String, max_depth: usize) -> Result<Expr, String> {
-    if max_depth > root_symbol_table.scope_level {
-        return Err(format!("Variable {} was not found in it's scope and scopes above it", label));
-    }
-    match root_symbol_table.scope_variables.get(label) {
-        Some((size, expr)) => {
 
-        },
-        None => {
-
-        }
-    };
-}
-
-fn check_statement(stmt: Statement, declared_functions: &mut FunctionRegistry, root_symbol_table: &SymbolTable, 
+fn check_statement(stmt: Statement, declared_functions: &mut FunctionRegistry, 
     symbol_table: &mut SymbolTable) -> Result<AnnotatedStatement, String> {
     match stmt {
         Statement::VarDeclaration { var_type, name, initializer } => {
-            //ensure that variable hasn't been declared yet
+            //ensure that variable hasn't been declared yet (in this scope)
             let symbol_found = symbol_table.scope_variables.get(&name);
             match symbol_found {
                 None => (), //good
@@ -130,28 +118,32 @@ fn check_statement(stmt: Statement, declared_functions: &mut FunctionRegistry, r
             //+ add the variable to the symbol table
             match initializer {
                 Some(mut expr) => {
-                    let new_expr = expr.untangle_variables(symbol_table.scope_id, symbol_table.scope_level, root_symbol_table, &declared_functions)?;
+                    let new_expr = expr.untangle_variables(symbol_table, &declared_functions)?;
                     let numeric_type = match var_type.to_numeric_value() {
                         None => return Err(format!("No numeric value type found for {}", var_type)),
                         Some( t) => t,
                     };
                     expr.coerce_to(&numeric_type);
-                    symbol_table.scope_variables.insert(name.clone(), (numeric_type.size_bytes(), Some(expr.clone())));
+                    symbol_table.scope_variables.insert(name.clone(), (var_type.clone(), numeric_type.size_bytes(), Some(expr.clone())));
                     return Ok(AnnotatedStatement::VarDeclaration { var_type, name, initializer:Some(expr.clone()) });
                 },
                 None => {
-                    symbol_table.scope_variables.insert(name.clone(), (0, None));
+                    symbol_table.scope_variables.insert(name.clone(), (var_type.clone(), 0, None));
                     return Ok(AnnotatedStatement::VarDeclaration { var_type, name, initializer:None });
                 }
             }
         },
         Statement::Assignment { name, value } => {
-            //ensure that variable exists, and convert the expr's type
+            //ensure that variable exists (even in upper scopes), and convert the expr's type
             //also ensure that the expression doesn't contain any undefined symbols
+            let _ = match_label(&name, &symbol_table);
             
+
+            todo!()
         },
         Statement::FunctionCall { name, args } => {
             //ensure that the function exists, and has the right parameters
+            todo!()
         },
         others => todo!()
         
@@ -166,7 +158,7 @@ impl Program {
         let mut function_reg = FunctionRegistry {functions: Vec::new()};
 
         let program = self.declarations.clone();
-        let mut root_symbol_table = Arc::new(Mutex::new(SymbolTable {
+        let root_symbol_table = Arc::new(Mutex::new(SymbolTable {
             scope_variables: HashMap::new(),
             children: Vec::new(),
             scope_level: 0,
@@ -189,12 +181,12 @@ impl Program {
 
                     function_reg.functions.push(annotated_function.clone());
 
-                    let mut symbol_table = SymbolTable::new(1, Some(root_symbol_table));
+                    let mut symbol_table = SymbolTable::new(1, Some(&root_symbol_table));
                     let mut annotated_block = AnnotatedBlock { statements: Vec::new()};
 
 
                     for stmt in annotated_function.body.statements {
-                        annotated_block.statements.push(check_statement(stmt, &mut function_reg, &root_symbol_table, &mut symbol_table)?);
+                        annotated_block.statements.push(check_statement(stmt, &mut function_reg, &mut symbol_table)?);
                     }
                     
 
@@ -205,7 +197,6 @@ impl Program {
                             let root_unpacked = root_symbol_table.lock().unwrap();
                             match expression.untangle_variables(
                                 &root_unpacked,
-                                &root_unpacked,
                                 &function_reg) {
                                 Ok(mut valid_expr) => {
                                     valid_expr.coerce_to(&var_type.to_numeric_value().expect("void variables are incorrect"));
@@ -215,7 +206,8 @@ impl Program {
                             }
                         },
                         None =>{
-                            root_symbol_table.scope_variables.insert(name.clone(), (var_type.size(), None));
+                            let mut table = root_symbol_table.lock().unwrap();
+                            table.scope_variables.insert(name.clone(), (var_type.clone(), var_type.size(), None));
                         }
                     }
                 }
@@ -226,83 +218,103 @@ impl Program {
     }
 }
 
-pub fn iter_scope(label: &String, max_depth: usize, scope_id: u32, symbol_table: &SymbolTable) -> Result<Expr, String> {
-    //search for the label in the current scope, and retrieve it's value
-    if symbol_table.scope_level < max_depth || symbol_table.scope_id == scope_id {
-        let found_label = symbol_table.scope_variables.get(label);
-        match found_label.cloned() {
-            Some((length, value)) => {
-                match (length, value) {
-                    (0, _) => return Err(format!("Parsing error at: {label} ")),
-                    (_, None) => return Err(format!("Symbol {label} was declared, but without a value")),
-                    (_, Some(expr)) => {
-                        return Ok(expr);
-                    }
-                };
-            }
-            None =>(),
-        }
-    }
-    for i in 0..symbol_table.children.len(){
-        //if it isn't found yet, iterate through the current symbol table's child
-        if symbol_table.children[i].children.len() != 0 &&
-            (symbol_table.scope_level < max_depth || symbol_table.scope_id == scope_id){
-            let e = iter_scope(label, max_depth, scope_id, &symbol_table.children[i]);
-            match e {
-                Ok(e) => return Ok(e),
-                Err(_) => continue //do not give up, go to the next iteration
+pub fn match_label(searched_label: &String, starting_scope: &SymbolTable) -> Result<Expr, String> {
+    //look for this scope first, then always go a scope upper
+    for label in starting_scope.scope_variables.keys().into_iter() {
+        if label == searched_label {
+            let variable_value = &starting_scope.scope_variables[label];
+            match &variable_value.2 {
+                None => return Err(format!("Variable {label} has no assigned value")),
+                Some(e) => return Ok(e.clone())
             }
         }
     }
 
-    Err(format!("variable {label} wasn't found!"))
+    //if it's not found in the scope, go one scope up
+    match starting_scope.parent.clone() {
+        Some(parent)=> {
+            if let Some(strong) = parent.upgrade() {
+                if let Ok(data) = strong.lock() {
+                    return match_label(searched_label, &data);
+                }
+            }
+            panic!("Parent mutex expected to exist if the option's value is not Some");
+        },
+        None => return Err(format!("Symbol {searched_label} not found in any of the scopes"))
+    }
+    
+
 }
 
-pub fn match_label(label: &String, own_scope_id: u32, own_scope_depth: usize, symbols: &SymbolTable) -> Result<Expr, String> {
-    for symbol in symbols.scope_variables.keys() { //search in top level scope
-        if symbol == label {
-            match symbols.scope_variables.get(symbol) {
-                Some((value_size, value)) => {
-                    match value {
-                        None => return Err(format!("Variable {label} doesn't have an actual value")),
-                        Some(expr) => {
-                            return Ok(expr.clone());   
-                        }
-                    }
-                }
-                None => {
-                    return Err(format!("Variable {label} doesn't have a value, it cannot be used in an expression"))
+pub fn search_for_function(function_name: &String, params: Vec<Expr>, function_reg: &FunctionRegistry) -> Result<Expr, String> {
+    for f in function_reg.functions.clone() {
+        if &f.name == function_name {
+            if params.len() != f.parameters.len() {return Err(format!("the amount of parameters for the function call of {function_name} is incorrect"))}
+            for i in 0..f.parameters.len() {
+                match params[i] {
+                    Expr::
                 }
             }
         }
     }
 
-    iter_scope(label, own_scope_depth, own_scope_id, symbols)
-
-}
-
-pub fn search_for_function() -> Result<Expr, String> {
-    todo!()
+    Err(format!("Function named {function_name} not found"))
 }
 
 impl Expr {
     //returns an option since the expression might contain invalid symbols
     //also, it can only see variables in it's own scope, or scopes above that
-    pub fn untangle_variables(&self, own_scope: &SymbolTable, root_symbol_table: &SymbolTable,
-    function_reg: &FunctionRegistry) -> Result<Expr, String> {
+    pub fn untangle_variables(&self, own_scope: &SymbolTable, function_reg: &FunctionRegistry) -> Result<Expr, String> {
         match self {
             Expr::Number(n) => Ok(self.clone()),
             //searches for valid variable declarations
             Expr::Label(label) => {
-                match_label(label, own_scope.scope_id, own_scope.scope_level, root_symbol_table)
+                match_label(label, own_scope)
             },
             Expr::FunctionCall(label, parameters) => {
-                search_for_function();
+                search_for_function(label, parameters.clone(), function_reg);
                 todo!()
             },
             Expr::BinaryOp { op, left, right } => {
+                
                 todo!()
             }
         }
     }
+
+    //resolving functions compile time is a bit advanced, so it will be implemented later
+    pub fn solve_self(&self, own_scope: &SymbolTable) -> Result<Expr, String> {
+        let mut new_expr: Expr;
+        match self {
+            Expr::Number(n) => Ok(self.clone()),
+            //searches for valid variable declarations
+            Expr::Label(label) => {
+                match_label(label, own_scope)
+            },
+            Expr::FunctionCall(label, parameters) => {
+                // search_for_function(label, parameters.clone(), function_reg);
+                todo!()
+            },
+            Expr::BinaryOp { op, left, right } => {
+                match *op {
+                    Token::Operator(Operator::Plus) => {
+
+                    },
+                    Token::Operator(Operator::Minus) => {
+
+                    },
+                    Token::Operator(Operator::Multiply) => {
+
+                    },
+                    Token::Operator(Operator::Divide) => {
+
+                    }
+                    _ => panic!("unimplemented binary operation")
+                }
+
+                todo!()
+            }
+        }
+    }
+
 }
